@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.pyc
+venv/
+
+# Dataset (too large for git, and shouldn't be versioned anyway)
+ai-model/data/raw/*.csv
+ai-model/data/raw/*.xlsx
+ai-model/data/processed/
+
+# Trained models (optional - large binary files, regenerable via main.py)
+ai-model/models/*.pkl
+
+# Node
+node_modules/
