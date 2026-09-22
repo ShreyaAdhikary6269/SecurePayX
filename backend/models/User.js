@@ -1,22 +1,36 @@
-const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
-const userSchema = new mongoose.Schema({
-  email: { type: String, required: true, unique: true },
-  password: { type: String, required: true }
-});
+// In-memory "database" - resets every time the server restarts.
+// Swap this file for a Mongoose version later without touching Auth.js,
+// since the method names (findOne, save, matchPassword) match Mongoose's API.
+let users = [];
+let idCounter = 1;
 
-// Hash password before saving to database
-userSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) return next();
-  const salt = await bcrypt.genSalt(10);
-  this.password = await bcrypt.hash(this.password, salt);
-  next();
-});
+class User {
+  constructor({ email, password }) {
+    this._id = String(idCounter++);
+    this.email = email;
+    this.password = password; // hashed in save()
+  }
 
-// Method to compare hashed passwords during login
-userSchema.methods.matchPassword = async function (enteredPassword) {
-  return await bcrypt.compare(enteredPassword, this.password);
-};
+  async save() {
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
+    users.push(this);
+    return this;
+  }
 
-module.exports = mongoose.model('User', userSchema);
+  async matchPassword(enteredPassword) {
+    return bcrypt.compare(enteredPassword, this.password);
+  }
+
+  static async findOne({ email }) {
+    return users.find((u) => u.email === email) || null;
+  }
+
+  static async findById(id) {
+    return users.find((u) => u._id === id) || null;
+  }
+}
+
+module.exports = User;

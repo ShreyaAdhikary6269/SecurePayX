@@ -113,7 +113,7 @@ export default function Dashboard() {
     : 0;
 
   return (
-    <DashboardLayout>
+    <Dashboardlayout>
       <div className="flex items-center justify-between mb-1">
         <h1 className="font-serif text-2xl text-ink">Overview</h1>
         {!loading && !error && (
@@ -228,6 +228,18 @@ export default function Dashboard() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+
+      <div className="mt-10 pt-6 border-t border-line">
+        <p className="text-xs text-ink-muted mb-3">Go to another section</p>
+        <div className="flex flex-wrap gap-2">
+          <Link to="/check" className="px-3.5 py-2 text-sm border border-line text-ink hover:border-green hover:text-green transition-colors">Check transaction</Link>
+          <Link to="/transactions" className="px-3.5 py-2 text-sm border border-line text-ink hover:border-green hover:text-green transition-colors">Transactions</Link>
+          <Link to="/alerts" className="px-3.5 py-2 text-sm border border-line text-ink hover:border-green hover:text-green transition-colors">Fraud alerts</Link>
+          <Link to="/upload" className="px-3.5 py-2 text-sm border border-line text-ink hover:border-green hover:text-green transition-colors">Batch upload</Link>
+          <Link to="/reports" className="px-3.5 py-2 text-sm border border-line text-ink hover:border-green hover:text-green transition-colors">Reports</Link>
+          <Link to="/profile" className="px-3.5 py-2 text-sm border border-line text-ink hover:border-green hover:text-green transition-colors">Profile</Link>
+        </div>
+      </div>
+    </Dashboardlayout>
   );
 }
