@@ -8,15 +8,16 @@ export default {
     extend: {
       colors: {
         bg: "#FFFFFF",
-        "bg-subtle": "#F5F9F6",
+        "bg-subtle": "#F4FAF7",
         ink: "#0F1E17",
         "ink-muted": "#5B6F64",
         green: {
-          DEFAULT: "#14532D",
-          strong: "#0C3D20",
-          soft: "#DCEEE3",
+          DEFAULT: "#059669",   // vibrant emerald (was deep forest)
+          strong: "#047857",
+          bright: "#10B981",
+          soft: "#D1FAE5",
         },
-        line: "#D8E6DC",
+        line: "#DCEAE3",
       },
       fontFamily: {
         serif: ["'Source Serif 4'", "Georgia", "serif"],

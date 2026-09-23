@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import DashboardLayout from './DashboardLayout';
+import Dashboardlayout from './Dashboardlayout';
 
 const PAYMENT_TYPE_LABELS = {
   creditcard: 'Credit / debit card',
@@ -50,7 +50,7 @@ export default function FraudAlerts() {
   const filtered = filter === 'all' ? flagged : flagged.filter((t) => t.paymentType === filter);
 
   return (
-    <DashboardLayout>
+    <Dashboardlayout>
       <h1 className="font-serif text-2xl text-ink mb-1">Fraud alerts</h1>
       <p className="text-ink-muted mb-6">Transactions that were flagged as fraud, filterable by payment type.</p>
 
@@ -124,6 +124,6 @@ export default function FraudAlerts() {
           </table>
         </div>
       )}
-    </DashboardLayout>
+    </Dashboardlayout>
   );
 }

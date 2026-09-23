@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import DashboardLayout from './DashboardLayout';
+import Dashboardlayout from './Dashboardlayout';
 
 const PAYMENT_TYPE_LABELS = {
   creditcard: 'Credit / debit card',
@@ -87,7 +87,7 @@ export default function Reports() {
     .slice(0, 5);
 
   return (
-    <DashboardLayout>
+    <Dashboardlayout>
       <h1 className="font-serif text-2xl text-ink mb-1">Reports</h1>
       <p className="text-ink-muted mb-8">Analytics and summary across all payment types.</p>
 
@@ -170,6 +170,6 @@ export default function Reports() {
           </div>
         </>
       )}
-    </DashboardLayout>
+    </Dashboardlayout>
   );
 }
