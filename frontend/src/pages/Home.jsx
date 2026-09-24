@@ -266,8 +266,8 @@ function JourneyBand() {
 
   return (
     <section ref={ref} className="relative bg-[#07231A] py-24 overflow-hidden">
-      <SecurityBackground className="opacity-30" density={40} color="16, 185, 129" />
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+      <SecurityBackground density={60} color="16, 185, 129" />
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="text-center mb-16">
           <div className="text-sm text-green-bright mb-2 tracking-wide font-medium">The intelligence pipeline</div>
           <h2 className="font-serif text-3xl sm:text-4xl font-semibold text-white">From payment to protection, in milliseconds</h2>
@@ -407,7 +407,8 @@ export default function Home() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-bg text-ink font-sans relative">
+    <div className="min-h-screen bg-bg text-ink font-sans relative isolate">
+      <SecurityBackground className="fixed inset-0 -z-10" density={90} />
       <style>{`
         @keyframes fade-in-up { from { opacity:0; transform:translateY(14px);} to {opacity:1; transform:translateY(0);} }
         @keyframes fade-in-left { from { opacity:0; transform:translateX(-10px);} to {opacity:1; transform:translateX(0);} }
@@ -432,14 +433,13 @@ export default function Home() {
       <main>
         {/* HERO */}
         <section className="relative pt-16 pb-6 overflow-hidden">
-          <div className="absolute inset-0 -z-10">
+          <div className="absolute inset-0 z-0 pointer-events-none">
             <div className="absolute inset-0 bg-security-grid opacity-[0.03]" />
             <div className="absolute -top-40 -left-40 w-[34rem] h-[34rem] rounded-full bg-green/10 blur-3xl animate-drift-slow" />
             <div className="absolute top-1/4 -right-40 w-[30rem] h-[30rem] rounded-full bg-green-bright/10 blur-3xl animate-drift-slower" />
-            <SecurityBackground className="opacity-70" density={55} />
           </div>
 
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid lg:grid-cols-[1.05fr_1fr] gap-16 items-center">
+          <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid lg:grid-cols-[1.05fr_1fr] gap-16 items-center">
             <div className={heroActive ? 'animate-fade-in-up' : 'opacity-0'}>
               <span className="inline-flex items-center gap-2 px-4 py-1.5 text-sm font-medium tracking-wide text-green bg-green-soft border border-green/20 mb-8">
                 <span className="relative flex h-2 w-2">
@@ -533,9 +533,9 @@ export default function Home() {
         </section>
 
         {/* Features */}
-        <section id="features" className="scroll-mt-20 bg-bg-subtle border-y border-line py-28 relative overflow-hidden">
-          <div className="absolute inset-0 bg-security-grid opacity-[0.02] -z-10" />
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <section id="features" className="scroll-mt-20 bg-bg-subtle border-y border-line py-28 relative isolate overflow-hidden">
+          <div className="absolute inset-0 z-0 bg-security-grid opacity-[0.02]" />
+          <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="max-w-2xl mb-14">
               <div className="text-sm text-green mb-2 font-semibold tracking-wide">WHAT'S INSIDE</div>
               <h2 className="font-serif text-4xl sm:text-5xl font-semibold text-ink">Built like a real fraud desk</h2>

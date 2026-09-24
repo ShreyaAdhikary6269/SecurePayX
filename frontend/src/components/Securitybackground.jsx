@@ -2,9 +2,9 @@ import { useEffect, useRef } from 'react'
 
 export default function SecurityBackground({
   className = '',
-  density = 50,
+  density = 80,
   color = '5, 150, 105',
-  linkDistance = 130,
+  linkDistance = 150,
 }) {
   const canvasRef = useRef(null)
 
@@ -22,8 +22,8 @@ export default function SecurityBackground({
 
     function resize() {
       const dpr = window.devicePixelRatio || 1
-      width = canvas.offsetWidth
-      height = canvas.offsetHeight
+      width = canvas.offsetWidth || window.innerWidth
+      height = canvas.offsetHeight || window.innerHeight
       canvas.width = width * dpr
       canvas.height = height * dpr
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
@@ -32,13 +32,13 @@ export default function SecurityBackground({
 
     function init() {
       particles = Array.from({ length: density }).map(() => {
-        const isGlyph = Math.random() < 0.1
+        const isGlyph = Math.random() < 0.14
         return {
           x: Math.random() * width,
           y: Math.random() * height,
-          vx: (Math.random() - 0.5) * 0.35,
-          vy: (Math.random() - 0.5) * 0.35,
-          r: isGlyph ? 0 : Math.random() * 1.6 + 1,
+          vx: (Math.random() - 0.5) * 0.45,
+          vy: (Math.random() - 0.5) * 0.45,
+          r: isGlyph ? 0 : Math.random() * 2.2 + 1.8,
           glyph: isGlyph ? GLYPHS[Math.floor(Math.random() * GLYPHS.length)] : null,
         }
       })
@@ -55,9 +55,9 @@ export default function SecurityBackground({
           const dy = a.y - b.y
           const dist = Math.sqrt(dx * dx + dy * dy)
           if (dist < linkDistance) {
-            const alpha = (1 - dist / linkDistance) * 0.18
+            const alpha = (1 - dist / linkDistance) * 0.55
             ctx.strokeStyle = `rgba(${color}, ${alpha})`
-            ctx.lineWidth = 1
+            ctx.lineWidth = 1.2
             ctx.beginPath()
             ctx.moveTo(a.x, a.y)
             ctx.lineTo(b.x, b.y)
@@ -68,11 +68,11 @@ export default function SecurityBackground({
 
       particles.forEach((p) => {
         if (p.glyph) {
-          ctx.fillStyle = `rgba(${color}, 0.4)`
-          ctx.font = '11px "IBM Plex Sans", sans-serif'
+          ctx.fillStyle = `rgba(${color}, 0.85)`
+          ctx.font = 'bold 15px "IBM Plex Sans", sans-serif'
           ctx.fillText(p.glyph, p.x, p.y)
         } else {
-          ctx.fillStyle = `rgba(${color}, 0.45)`
+          ctx.fillStyle = `rgba(${color}, 0.9)`
           ctx.beginPath()
           ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2)
           ctx.fill()
