@@ -4,17 +4,31 @@ const cors = require('cors');
 
 const authRoutes = require('./routes/Auth');
 const dashboardRoutes = require('./routes/dashboard');
+const transactionRoutes = require('./routes/transactions');
+const fraudRoutes = require('./routes/fraud');
+const alertRoutes = require('./routes/alerts');
+const feedbackRoutes = require('./routes/feedback');
 
 const app = express();
 
-// No database connection for now - using in-memory storage in
-// models/User.js and models/Transaction.js. Data resets on restart.
+// No database connection - using in-memory storage in models/.
+// Data resets when this server restarts.
 
 app.use(cors());
 app.use(express.json());
 
+// Log every request so it's clear what the browser is calling
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.originalUrl}`);
+  next();
+});
+
 app.use('/api/auth', authRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/transactions', transactionRoutes);
+app.use('/api/fraud', fraudRoutes);
+app.use('/api/alerts', alertRoutes);
+app.use('/api/feedback', feedbackRoutes);
 
 app.get('/', (req, res) => {
   res.send('SecurePayX backend is running (in-memory mode, no database)');

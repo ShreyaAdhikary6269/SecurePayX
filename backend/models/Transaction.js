@@ -7,6 +7,7 @@ let idCounter = 1;
 class Transaction {
   constructor({ user, paymentType, amount, fraudProbability, isFraud, thresholdUsed, rawInput }) {
     this._id = String(idCounter++);
+    this.id = this._id; // frontend components read `id`
     this.user = user;
     this.paymentType = paymentType;
     this.amount = amount;
@@ -25,7 +26,7 @@ class Transaction {
   static async find({ user }) {
     return transactions
       .filter((t) => t.user === user)
-      .sort((a, b) => b.createdAt - a.createdAt);
+      .sort((a, b) => b.createdAt - a.createdAt || Number(b._id) - Number(a._id));
   }
 }
 
