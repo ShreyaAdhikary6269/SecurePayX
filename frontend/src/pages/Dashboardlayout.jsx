@@ -1,6 +1,7 @@
 import React from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import SecurityBackground from '../components/Securitybackground'
+import NotificationBell from '../components/Notificationbell'
 
 function ShieldMark({ className = 'w-7 h-7', stroke = '#059669' }) {
   return (
@@ -100,7 +101,13 @@ export default function DashboardLayout({ children }) {
           <div className="absolute inset-0 bg-security-grid opacity-[0.025]" />
           <SecurityBackground className="opacity-40" density={35} linkDistance={110} />
         </div>
-        <div className="relative z-10 px-10 py-10 max-w-6xl">{children}</div>
+
+        <div className="relative z-10">
+          <header className="flex items-center justify-end gap-3 px-10 py-4 border-b border-line bg-white/70 backdrop-blur-sm">
+            <NotificationBell />
+          </header>
+          <div className="px-10 py-10 max-w-6xl">{children}</div>
+        </div>
       </main>
     </div>
   )
