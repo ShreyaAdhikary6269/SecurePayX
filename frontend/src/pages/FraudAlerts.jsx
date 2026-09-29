@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import Dashboardlayout from './Dashboardlayout';
+import TransactionFilters from '../components/TransactionFilters';
+import ExportButton from '../components/ExportButton';
 
 const PAYMENT_TYPE_LABELS = {
   creditcard: 'Credit / debit card',
@@ -19,6 +21,7 @@ export default function FraudAlerts() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [filter, setFilter] = useState('all');
+  const [visible, setVisible] = useState([]);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -49,9 +52,34 @@ export default function FraudAlerts() {
   const flagged = transactions.filter((t) => t.isFraud);
   const filtered = filter === 'all' ? flagged : flagged.filter((t) => t.paymentType === filter);
 
+  // TransactionFilters expects `createdAt`; this data uses `checkedAt`, so
+  // it's mapped across without touching the shared component.
+  const filterInput = filtered.map((t) => ({ ...t, createdAt: t.checkedAt }));
+
+  const exportRows = visible.map((tx) => ({
+    id: tx.id,
+    paymentType: PAYMENT_TYPE_LABELS[tx.paymentType] || tx.paymentType,
+    amount: tx.amount,
+    fraudProbability: tx.fraudProbability != null ? `${(tx.fraudProbability * 100).toFixed(2)}%` : '',
+    checkedAt: tx.checkedAt,
+  }));
+
   return (
     <Dashboardlayout>
-      <h1 className="font-serif text-2xl text-ink mb-1">Fraud alerts</h1>
+      <div className="flex items-start justify-between gap-4 mb-1">
+        <h1 className="font-serif text-2xl text-ink">Fraud alerts</h1>
+        <ExportButton
+          data={exportRows}
+          filename="fraud-alerts"
+          columns={[
+            { key: 'id', label: 'Transaction ID' },
+            { key: 'paymentType', label: 'Payment type' },
+            { key: 'amount', label: 'Amount' },
+            { key: 'fraudProbability', label: 'Fraud probability' },
+            { key: 'checkedAt', label: 'Flagged' },
+          ]}
+        />
+      </div>
       <p className="text-ink-muted mb-6">Transactions that were flagged as fraud, filterable by payment type.</p>
 
       {!loading && !error && (
@@ -78,6 +106,10 @@ export default function FraudAlerts() {
         ))}
       </div>
 
+      {!loading && !error && flagged.length > 0 && (
+        <TransactionFilters transactions={filterInput} onFilteredChange={setVisible} />
+      )}
+
       {loading && <p className="text-sm text-ink-muted">Loading fraud alerts...</p>}
 
       {error && (
@@ -86,7 +118,7 @@ export default function FraudAlerts() {
         </div>
       )}
 
-      {!loading && !error && filtered.length === 0 && (
+      {!loading && !error && visible.length === 0 && (
         <div className="border border-line border-dashed p-10 text-center">
           <p className="text-sm text-ink-muted">
             {flagged.length === 0
@@ -96,7 +128,7 @@ export default function FraudAlerts() {
         </div>
       )}
 
-      {!loading && !error && filtered.length > 0 && (
+      {!loading && !error && visible.length > 0 && (
         <div className="border border-red-200 overflow-hidden">
           <table className="w-full text-sm">
             <thead>
@@ -108,7 +140,7 @@ export default function FraudAlerts() {
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
-              {filtered.map((tx) => (
+              {visible.map((tx) => (
                 <tr key={tx.id} className="hover:bg-bg-subtle transition-colors">
                   <td className="px-4 py-3 text-ink-muted">
                     {PAYMENT_TYPE_LABELS[tx.paymentType] || tx.paymentType}

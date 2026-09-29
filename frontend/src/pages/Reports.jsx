@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import Dashboardlayout from './Dashboardlayout';
+import ExportButton from '../components/ExportButton';
 
 const PAYMENT_TYPE_LABELS = {
   creditcard: 'Credit / debit card',
@@ -86,9 +87,32 @@ export default function Reports() {
     .sort((a, b) => (b.fraudProbability || 0) - (a.fraudProbability || 0))
     .slice(0, 5);
 
+  const summaryExportRows = [
+    { metric: 'Overall fraud rate', value: `${overallFraudRate.toFixed(2)}%` },
+    { metric: 'Average fraud probability', value: `${(avgFraudProbability * 100).toFixed(2)}%` },
+    { metric: 'Total checked', value: totalChecked },
+    ...Object.entries(byType).map(([type, stats]) => ({
+      metric: `${PAYMENT_TYPE_LABELS[type] || type} — fraud rate`,
+      value: `${stats.fraud} / ${stats.checked} (${stats.checked > 0 ? ((stats.fraud / stats.checked) * 100).toFixed(2) : '0.00'}%)`,
+    })),
+  ];
+
   return (
     <Dashboardlayout>
-      <h1 className="font-serif text-2xl text-ink mb-1">Reports</h1>
+      <div className="flex items-start justify-between gap-4 mb-1">
+        <h1 className="font-serif text-2xl text-ink">Reports</h1>
+        {!loading && !error && totalChecked > 0 && (
+          <ExportButton
+            data={summaryExportRows}
+            filename="fraud-report-summary"
+            columns={[
+              { key: 'metric', label: 'Metric' },
+              { key: 'value', label: 'Value' },
+            ]}
+            label="Download summary"
+          />
+        )}
+      </div>
       <p className="text-ink-muted mb-8">Analytics and summary across all payment types.</p>
 
       {loading && <p className="text-sm text-ink-muted">Loading report data...</p>}
@@ -140,8 +164,26 @@ export default function Reports() {
           </div>
 
           <div className="border border-line">
-            <div className="border-b border-line px-5 py-4">
+            <div className="flex items-center justify-between border-b border-line px-5 py-4">
               <h2 className="font-serif text-lg text-ink">Highest risk transactions</h2>
+              <ExportButton
+                data={highestRisk.map((tx) => ({
+                  id: tx.id,
+                  paymentType: PAYMENT_TYPE_LABELS[tx.paymentType] || tx.paymentType,
+                  amount: tx.amount,
+                  fraudProbability: tx.fraudProbability != null ? `${(tx.fraudProbability * 100).toFixed(2)}%` : '',
+                  checkedAt: tx.checkedAt,
+                }))}
+                filename="highest-risk-transactions"
+                columns={[
+                  { key: 'id', label: 'Transaction ID' },
+                  { key: 'paymentType', label: 'Payment type' },
+                  { key: 'amount', label: 'Amount' },
+                  { key: 'fraudProbability', label: 'Fraud probability' },
+                  { key: 'checkedAt', label: 'Checked' },
+                ]}
+                label="Download"
+              />
             </div>
             <table className="w-full text-sm">
               <thead>
