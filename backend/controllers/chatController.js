@@ -1,8 +1,9 @@
-const Anthropic = require('@anthropic-ai/sdk');
+const { GoogleGenAI } = require('@google/genai');
 const Transaction = require('../models/Transaction');
 
-const MODEL = 'claude-haiku-4-5-20251001'; // fastest model
-const MAX_HISTORY = 10;      // last 10 messages sent to the model
+// Model name can be overridden in backend/.env with GEMINI_MODEL=...
+const MODEL = process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite';
+const MAX_HISTORY = 10;       // last 10 messages sent to the model
 const MAX_MESSAGE_LEN = 1000; // characters per message
 const MAX_TOKENS = 600;       // cap on reply length
 
@@ -12,8 +13,8 @@ const PAYMENT_TYPE_LABELS = {
   banksim: 'Banking',
 };
 
-const client = process.env.ANTHROPIC_API_KEY
-  ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+const ai = process.env.GEMINI_API_KEY
+  ? new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY })
   : null;
 
 // Turns the user's transactions into a short text summary for the model.
@@ -88,7 +89,7 @@ USER'S TRANSACTION DATA:
 ${dataSummary}`;
 }
 
-// Cleans the history sent by the browser so it is safe to forward.
+// Cleans the history sent by the browser and converts it to Gemini's format.
 function cleanHistory(history) {
   if (!Array.isArray(history)) return [];
 
@@ -103,17 +104,22 @@ function cleanHistory(history) {
     .map((m) => ({ role: m.role, content: m.content.slice(0, MAX_MESSAGE_LEN) }))
     .slice(-MAX_HISTORY);
 
-  // The conversation sent to the model must start with a user message.
+  // The conversation must start with a user message.
   while (cleaned.length > 0 && cleaned[0].role !== 'user') cleaned.shift();
-  return cleaned;
+
+  // Gemini calls the assistant role "model".
+  return cleaned.map((m) => ({
+    role: m.role === 'assistant' ? 'model' : 'user',
+    parts: [{ text: m.content }],
+  }));
 }
 
 exports.chat = async (req, res) => {
   try {
-    if (!client) {
+    if (!ai) {
       return res
         .status(500)
-        .json({ message: 'Chatbot is not configured: ANTHROPIC_API_KEY is missing in backend/.env' });
+        .json({ message: 'Chatbot is not configured: GEMINI_API_KEY is missing in backend/.env' });
     }
 
     const { message, history } = req.body;
@@ -124,9 +130,9 @@ exports.chat = async (req, res) => {
     const transactions = await Transaction.find({ user: req.user.id });
     const system = buildSystemPrompt(buildDataSummary(transactions));
 
-    const messages = [
+    const contents = [
       ...cleanHistory(history),
-      { role: 'user', content: message.trim().slice(0, MAX_MESSAGE_LEN) },
+      { role: 'user', parts: [{ text: message.trim().slice(0, MAX_MESSAGE_LEN) }] },
     ];
 
     // Stream the reply as plain text so words appear right away.
@@ -135,31 +141,38 @@ exports.chat = async (req, res) => {
     res.setHeader('X-Accel-Buffering', 'no');
     res.flushHeaders();
 
-    const stream = client.messages.stream({
-      model: MODEL,
-      max_tokens: MAX_TOKENS,
-      system,
-      messages,
-    });
-
-    stream.on('text', (text) => res.write(text));
-
-    stream.on('error', (err) => {
-      console.error('Chat stream error:', err.message);
-      if (!res.writableEnded) {
-        res.write('\n\nSorry, something went wrong. Please try again.');
-        res.end();
-      }
-    });
-
-    stream.on('end', () => {
-      if (!res.writableEnded) res.end();
-    });
-
-    // Stop the AI call if the user closes the chat or the page mid-reply.
+    let clientClosed = false;
     res.on('close', () => {
-      if (!res.writableEnded) stream.abort();
+      if (!res.writableEnded) clientClosed = true;
     });
+
+    try {
+      const stream = await ai.models.generateContentStream({
+        model: MODEL,
+        contents,
+        config: {
+          systemInstruction: system,
+          maxOutputTokens: MAX_TOKENS,
+        },
+      });
+
+      for await (const chunk of stream) {
+        if (clientClosed) break; // user closed the chat mid-reply
+        if (chunk.text) res.write(chunk.text);
+      }
+    } catch (err) {
+      console.error('Chat stream error:', err.message);
+      const msg = err.message || '';
+      let reply = '\n\nSorry, something went wrong. Please try again.';
+      if (/429|quota|rate limit|RESOURCE_EXHAUSTED/i.test(msg)) {
+        reply = '\n\nThe free AI limit was reached. Please wait a minute and try again.';
+      } else if (/NOT_FOUND|no longer available|404/i.test(msg)) {
+        reply = '\n\nThe AI model name is outdated. Update GEMINI_MODEL in the backend .env file.';
+      }
+      if (!res.writableEnded && !clientClosed) res.write(reply);
+    }
+
+    if (!res.writableEnded) res.end();
   } catch (err) {
     console.error('Chat error:', err.message);
     if (!res.headersSent) {
