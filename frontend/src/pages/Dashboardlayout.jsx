@@ -2,6 +2,7 @@ import React from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import SecurityBackground from '../components/Securitybackground'
 import NotificationBell from '../components/Notificationbell'
+import ChatWidget from '../components/Chatwidget'
 
 function ShieldMark({ className = 'w-7 h-7', stroke = '#059669' }) {
   return (
@@ -21,6 +22,18 @@ const LINKS = [
   { to: '/reports', label: 'Reports' },
   { to: '/profile', label: 'Profile' },
 ]
+
+// Returns true if there is no token or its `exp` time has passed.
+function isTokenExpired(token) {
+  if (!token) return true
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')))
+    if (!payload.exp) return false
+    return payload.exp * 1000 <= Date.now()
+  } catch {
+    return true
+  }
+}
 
 function Sidebar() {
   const navigate = useNavigate()
@@ -74,7 +87,11 @@ export default function DashboardLayout({ children }) {
 
   React.useEffect(() => {
     const token = localStorage.getItem('token')
-    if (!token) navigate('/login')
+    if (isTokenExpired(token)) {
+      localStorage.removeItem('token')
+      localStorage.removeItem('user')
+      navigate('/login')
+    }
   }, [navigate])
 
   return (
@@ -109,6 +126,8 @@ export default function DashboardLayout({ children }) {
           <div className="px-10 py-10 max-w-6xl">{children}</div>
         </div>
       </main>
+
+      <ChatWidget />
     </div>
   )
 }

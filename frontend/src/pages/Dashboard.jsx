@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import DashboardLayout from './DashboardLayout'
-import TimeOfDayChart from '../components/TimeOfDayChart'
+import DashboardLayout from './Dashboardlayout'
+import TimeOfDayChart from '../components/Timeofdaychart'
 
 function useCountUp(target, duration = 1000, decimals = 0) {
   const [value, setValue] = useState(0)
