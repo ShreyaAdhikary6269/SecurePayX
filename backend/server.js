@@ -8,6 +8,7 @@ const transactionRoutes = require('./routes/transactions');
 const fraudRoutes = require('./routes/fraud');
 const alertRoutes = require('./routes/alerts');
 const feedbackRoutes = require('./routes/feedback');
+const chatRoutes = require('./routes/chat');
 
 const app = express();
 
@@ -29,6 +30,7 @@ app.use('/api/transactions', transactionRoutes);
 app.use('/api/fraud', fraudRoutes);
 app.use('/api/alerts', alertRoutes);
 app.use('/api/feedback', feedbackRoutes);
+app.use('/api/chat', chatRoutes);
 
 app.get('/', (req, res) => {
   res.send('SecurePayX backend is running (in-memory mode, no database)');
