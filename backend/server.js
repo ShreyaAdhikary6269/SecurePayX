@@ -18,9 +18,10 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Log every request so it's clear what the browser is calling
+// Log every request, except the alert polling (it runs every few seconds)
 app.use((req, res, next) => {
-  console.log(`${req.method} ${req.originalUrl}`);
+  const isAlertPolling = req.method === 'GET' && req.originalUrl.startsWith('/api/alerts');
+  if (!isAlertPolling) console.log(`${req.method} ${req.originalUrl}`);
   next();
 });
 

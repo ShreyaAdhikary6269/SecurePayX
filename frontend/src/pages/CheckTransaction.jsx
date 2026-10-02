@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Dashboardlayout from './Dashboardlayout';
+import RiskGauge from '../components/Riskgauge';
 
 const PAYMENT_TYPES = [
   { id: 'creditcard', label: 'Credit / Debit card', desc: 'Card-present or card-not-present transactions.' },
@@ -292,23 +293,27 @@ export default function CheckTransaction() {
         </form>
       )}
 
-      {/* Step 3: result */}
+      {/* Step 3: result with risk gauge */}
       {result && (
         <div
           className={`border p-6 max-w-lg ${
             result.is_fraud ? 'border-red-300 bg-red-50' : 'border-line bg-green-soft'
           }`}
         >
-          <div className="flex items-center gap-2 mb-2">
+          <div className="flex items-center gap-2 mb-4">
             <span className={`w-2 h-2 rounded-full ${result.is_fraud ? 'bg-red-600' : 'bg-green'}`} />
             <h3 className={`font-serif text-lg ${result.is_fraud ? 'text-red-700' : 'text-green'}`}>
               {result.is_fraud ? 'Fraud detected' : 'Transaction looks safe'}
             </h3>
           </div>
-          <p className="text-sm text-ink-muted">
-            Fraud probability: <span className="text-ink">{(result.fraud_probability * 100).toFixed(2)}%</span>
-          </p>
-          <p className="text-xs text-ink-muted mt-1">
+
+          <RiskGauge
+            probability={result.fraud_probability}
+            isFraud={result.is_fraud}
+            threshold={result.threshold_used}
+          />
+
+          <p className="text-xs text-ink-muted mt-5 text-center">
             Threshold used: {result.threshold_used}
           </p>
         </div>

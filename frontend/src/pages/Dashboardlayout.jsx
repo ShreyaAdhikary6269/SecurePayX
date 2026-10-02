@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom'
 import SecurityBackground from '../components/Securitybackground'
 import NotificationBell from '../components/Notificationbell'
 import ChatWidget from '../components/Chatwidget'
+import AlertToaster from '../components/Alerttoaster'
 
 function ShieldMark({ className = 'w-7 h-7', stroke = '#059669' }) {
   return (
@@ -127,6 +128,7 @@ export default function DashboardLayout({ children }) {
         </div>
       </main>
 
+      <AlertToaster />
       <ChatWidget />
     </div>
   )

@@ -25,7 +25,7 @@ const PAYMENT_TYPE_LABELS = {
  * Backend expectation: GET /api/alerts?limit=8  ->  { alerts: [
  *   { id, paymentType, amount, fraudProbability, createdAt }, ...
  * ] }
- * If that route doesn't exist yet, the bell just shows 0 quietly.
+ * Refreshes itself when the AlertToaster fires a 'securepayx:new-alert' event.
  */
 export default function NotificationBell() {
   const [open, setOpen] = useState(false)
@@ -37,11 +37,17 @@ export default function NotificationBell() {
   useEffect(() => {
     const token = localStorage.getItem('token')
     if (!token) return
-    fetch('http://localhost:5000/api/alerts?limit=8', { headers: { Authorization: `Bearer ${token}` } })
-      .then((res) => (res.ok ? res.json() : Promise.reject()))
-      .then((data) => setAlerts(data.alerts || []))
-      .catch(() => setAlerts([]))
-      .finally(() => setLoading(false))
+
+    const load = () =>
+      fetch('http://localhost:5000/api/alerts?limit=8', { headers: { Authorization: `Bearer ${token}` } })
+        .then((res) => (res.ok ? res.json() : Promise.reject()))
+        .then((data) => setAlerts(data.alerts || []))
+        .catch(() => {})
+
+    load().finally(() => setLoading(false))
+
+    window.addEventListener('securepayx:new-alert', load)
+    return () => window.removeEventListener('securepayx:new-alert', load)
   }, [])
 
   useEffect(() => {
