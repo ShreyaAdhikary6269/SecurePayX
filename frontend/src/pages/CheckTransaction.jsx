@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import Dashboardlayout from './Dashboardlayout';
+import DashboardLayout from './Dashboardlayout';
 import RiskGauge from '../components/Riskgauge';
+import creditcardSamples from '../data/creditcardSamples.json';
 
 const PAYMENT_TYPES = [
   { id: 'creditcard', label: 'Credit / Debit card', desc: 'Card-present or card-not-present transactions.' },
@@ -8,9 +9,55 @@ const PAYMENT_TYPES = [
   { id: 'banksim', label: 'Banking', desc: 'Bank transactions across different merchant categories.' },
 ];
 
-function CreditCardForm({ values, onChange }) {
+const SAMPLE_BUTTONS = [
+  {
+    kind: 'mixed',
+    label: 'Load random real transaction',
+    info: 'Random real test transaction loaded.',
+    className: 'text-ink border-line hover:bg-bg-subtle',
+  },
+  {
+    kind: 'fraud',
+    label: 'Load sample fraud transaction',
+    info: 'Fraud sample loaded.',
+    className: 'text-red-700 border-red-200 hover:bg-red-50',
+  },
+  {
+    kind: 'borderline',
+    label: 'Load sample borderline transaction',
+    info: 'Borderline sample loaded (the model is unsure).',
+    className: 'text-amber-700 border-amber-300 hover:bg-amber-50',
+  },
+  {
+    kind: 'safe',
+    label: 'Load sample safe transaction',
+    info: 'Safe sample loaded.',
+    className: 'text-green border-green/30 hover:bg-green-soft',
+  },
+];
+
+function CreditCardForm({ values, onChange, onLoadSample, sampleInfo }) {
   return (
     <div className="space-y-4">
+      <div className="flex flex-wrap gap-2">
+        {SAMPLE_BUTTONS.filter((b) => (creditcardSamples[b.kind] || []).length > 0).map((b) => (
+          <button
+            key={b.kind}
+            type="button"
+            onClick={() => onLoadSample(b)}
+            className={`px-3 py-1.5 text-xs font-medium bg-white border rounded-full transition-colors ${b.className}`}
+          >
+            {b.label}
+          </button>
+        ))}
+      </div>
+
+      {sampleInfo && (
+        <p className="text-xs text-ink-muted bg-bg-subtle border border-line px-3 py-2">
+          {sampleInfo} V1–V28 were filled in from real test data.
+        </p>
+      )}
+
       <div>
         <label className="block text-sm mb-1.5 text-ink-muted">Amount</label>
         <input
@@ -36,8 +83,9 @@ function CreditCardForm({ values, onChange }) {
       </div>
       <p className="text-xs text-ink-muted border-t border-line pt-4">
         This model also uses 28 anonymized behavioral features (V1-V28) that
-        aren't meaningful to enter by hand. Use "Load sample transaction" to
-        test with a real example from the test set.
+        aren't meaningful to enter by hand. Without a sample, they are set to 0,
+        so every manual check looks like an average transaction. Use the sample
+        buttons above to test with real examples from the test set.
       </p>
     </div>
   );
@@ -189,16 +237,37 @@ export default function CheckTransaction() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState(null);
+  const [sampleInfo, setSampleInfo] = useState('');
+  const [sampleMeta, setSampleMeta] = useState(null); // true label of the loaded sample
+  const [resultMeta, setResultMeta] = useState(null); // true label for the shown result
 
   const handleChange = (field, value) => {
     setValues((prev) => ({
       ...prev,
       [selectedType]: { ...prev[selectedType], [field]: value },
     }));
+    // Editing a loaded sample means the dataset's true label no longer applies
+    setSampleMeta(null);
   };
 
   const handleSelectType = (typeId) => {
     setSelectedType(typeId);
+    setResult(null);
+    setError('');
+  };
+
+  // Fills the credit card form (including the hidden V1-V28 values) from a real test row
+  const handleLoadSample = (button) => {
+    const list = creditcardSamples[button.kind] || [];
+    if (list.length === 0) {
+      setError('No sample transactions found. Run export_samples.py in the ai-model folder first.');
+      return;
+    }
+    const sample = list[Math.floor(Math.random() * list.length)];
+    const { _actual, ...features } = sample; // keep the true label out of the request
+    setValues((prev) => ({ ...prev, creditcard: features }));
+    setSampleMeta(_actual === undefined ? null : { actual: _actual });
+    setSampleInfo(button.info);
     setResult(null);
     setError('');
   };
@@ -210,6 +279,7 @@ export default function CheckTransaction() {
     setLoading(true);
 
     const token = localStorage.getItem('token');
+    const metaForThisCheck = selectedType === 'creditcard' ? sampleMeta : null;
 
     try {
       const response = await fetch(`http://localhost:5000/api/fraud/predict/${selectedType}`, {
@@ -228,6 +298,7 @@ export default function CheckTransaction() {
       }
 
       setResult(data);
+      setResultMeta(metaForThisCheck);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -235,8 +306,37 @@ export default function CheckTransaction() {
     }
   };
 
+  // Compare the model's verdict with the dataset's true label (when known)
+  let truthPanel = null;
+  if (result && resultMeta) {
+    const actualFraud = resultMeta.actual === 1;
+    const correct = actualFraud === result.is_fraud;
+    const message = correct
+      ? 'The model got this one right.'
+      : actualFraud
+      ? 'The model missed this fraud (a false negative).'
+      : 'The model flagged a legitimate transaction (a false alarm).';
+
+    truthPanel = (
+      <div
+        className={`mt-5 p-3 text-sm border ${
+          correct ? 'bg-white border-green/30' : 'bg-white border-amber-300'
+        }`}
+      >
+        <div className="text-ink">
+          Actual label in the dataset:{' '}
+          <span className="font-semibold">{actualFraud ? 'Fraud' : 'Legitimate'}</span>
+        </div>
+        <div className={`mt-1 text-xs ${correct ? 'text-green' : 'text-amber-700'}`}>
+          {correct ? '✓ ' : '✗ '}
+          {message}
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <Dashboardlayout>
+    <DashboardLayout>
       <h1 className="font-serif text-2xl text-ink mb-1">Check a transaction</h1>
       <p className="text-ink-muted mb-8">
         Pick a payment type, enter the transaction details, and get a fraud probability.
@@ -268,7 +368,12 @@ export default function CheckTransaction() {
           </h2>
 
           {selectedType === 'creditcard' && (
-            <CreditCardForm values={values.creditcard} onChange={handleChange} />
+            <CreditCardForm
+              values={values.creditcard}
+              onChange={handleChange}
+              onLoadSample={handleLoadSample}
+              sampleInfo={sampleInfo}
+            />
           )}
           {selectedType === 'paysim' && (
             <WalletForm values={values.paysim} onChange={handleChange} />
@@ -316,8 +421,10 @@ export default function CheckTransaction() {
           <p className="text-xs text-ink-muted mt-5 text-center">
             Threshold used: {result.threshold_used}
           </p>
+
+          {truthPanel}
         </div>
       )}
-    </Dashboardlayout>
+    </DashboardLayout>
   );
 }

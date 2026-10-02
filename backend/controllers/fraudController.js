@@ -1,6 +1,8 @@
 const Transaction = require('../models/Transaction');
 
-const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://localhost:8000';
+// Address of the Python model API. Override with AI_SERVICE_URL in backend/.env
+const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://127.0.0.1:8000';
+const AI_TIMEOUT_MS = 15000;
 
 exports.predict = async (req, res) => {
   const { type } = req.params;
@@ -11,12 +13,16 @@ exports.predict = async (req, res) => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(AI_TIMEOUT_MS),
     });
 
     const data = await response.json();
 
     if (!response.ok) {
-      return res.status(response.status).json(data);
+      // The Python API reports errors as { error }, the frontend reads { message }
+      return res.status(response.status).json({
+        message: data.message || data.error || 'The fraud detection service returned an error',
+      });
     }
 
     // Log this check so it shows up on Transactions / Dashboard

@@ -44,53 +44,70 @@ def load_artifacts(dataset_name):
     return _cache[dataset_name]
 
 
-def build_creditcard_row(payload, scaler):
+def num(payload, key, default=0.0):
+    """Reads a number from the request; empty or missing values use the default."""
+    value = payload.get(key, default)
+    if value is None or value == "":
+        return float(default)
+    return float(value)
+
+
+def scale_columns(df, scaler, default_cols):
+    """Scales columns in the same order the scaler was fitted with."""
+    cols = list(getattr(scaler, "feature_names_in_", default_cols))
+    df[cols] = scaler.transform(df[cols])
+    return df
+
+
+def align_to_model(df, model):
+    """Puts columns in exactly the order the model was trained on."""
+    expected_cols = model.get_booster().feature_names
+    if expected_cols:
+        df = df.reindex(columns=expected_cols, fill_value=0)
+    return df
+
+
+def build_creditcard_row(payload, scaler, model):
     """
     Builds a single-row DataFrame for the credit card model.
-    V1-V28 default to 0 since the frontend form doesn't collect them
-    (they're anonymized PCA features with no real-world meaning to type in).
+    V1-V28 are read from the request when present (the sample buttons send
+    them); otherwise they default to 0.
     """
-    row = {f"V{i}": 0.0 for i in range(1, 29)}
-    row["Amount"] = float(payload.get("Amount", 0))
-    row["Time"] = float(payload.get("Time", 0))
+    row = {f"V{i}": num(payload, f"V{i}", 0.0) for i in range(1, 29)}
+    row["Amount"] = num(payload, "Amount", 0.0)
+    row["Time"] = num(payload, "Time", 0.0)
     df = pd.DataFrame([row])
-    df[["Amount", "Time"]] = scaler.transform(df[["Amount", "Time"]])
-    return df
+    df = scale_columns(df, scaler, ["Amount", "Time"])
+    return align_to_model(df, model)
 
 
 def build_paysim_row(payload, scaler, model):
     row = {
-        "step": float(payload.get("step", 1)),
-        "amount": float(payload.get("amount", 0)),
-        "oldbalanceOrg": float(payload.get("oldbalanceOrg", 0)),
-        "newbalanceOrig": float(payload.get("newbalanceOrig", 0)),
-        "oldbalanceDest": float(payload.get("oldbalanceDest", 0)),
-        "newbalanceDest": float(payload.get("newbalanceDest", 0)),
+        "step": num(payload, "step", 1),
+        "amount": num(payload, "amount", 0),
+        "oldbalanceOrg": num(payload, "oldbalanceOrg", 0),
+        "newbalanceOrig": num(payload, "newbalanceOrig", 0),
+        "oldbalanceDest": num(payload, "oldbalanceDest", 0),
+        "newbalanceDest": num(payload, "newbalanceDest", 0),
     }
     for t in ["CASH_IN", "CASH_OUT", "DEBIT", "PAYMENT", "TRANSFER"]:
         row[f"type_{t}"] = 1 if payload.get("type") == t else 0
 
     df = pd.DataFrame([row])
     numeric_cols = ["step", "amount", "oldbalanceOrg", "newbalanceOrig", "oldbalanceDest", "newbalanceDest"]
-    df[numeric_cols] = scaler.transform(df[numeric_cols])
-
-    # Align columns to exactly what the model was trained on, in the right order
-    expected_cols = model.get_booster().feature_names
-    df = df.reindex(columns=expected_cols, fill_value=0)
-    return df
+    df = scale_columns(df, scaler, numeric_cols)
+    return align_to_model(df, model)
 
 
 def build_banksim_row(payload, scaler, model):
     row = {
         "step": 1.0,
-        "age": float(payload.get("age", 0)),
-        "amount": float(payload.get("amount", 0)),
+        "age": num(payload, "age", 0),
+        "amount": num(payload, "amount", 0),
     }
     df = pd.DataFrame([row])
-    df[["step", "age", "amount"]] = scaler.transform(df[["step", "age", "amount"]])
-
-    expected_cols = model.get_booster().feature_names
-    df = df.reindex(columns=expected_cols, fill_value=0)
+    df = scale_columns(df, scaler, ["step", "age", "amount"])
+    df = align_to_model(df, model)
 
     gender_col = f"gender_{payload.get('gender', 'M')}"
     if gender_col in df.columns:
@@ -119,7 +136,7 @@ def predict(dataset_name):
 
     try:
         if dataset_name == "creditcard":
-            df = build_creditcard_row(payload, scaler)
+            df = build_creditcard_row(payload, scaler, model)
         elif dataset_name == "paysim":
             df = build_paysim_row(payload, scaler, model)
         elif dataset_name == "banksim":
@@ -130,7 +147,12 @@ def predict(dataset_name):
         return jsonify({"error": f"Bad input: {str(e)}"}), 400
 
     threshold = OPTIMAL_THRESHOLDS.get(dataset_name, config.DEFAULT_THRESHOLD)
-    fraud_probability = float(model.predict_proba(df)[0, 1])
+
+    try:
+        fraud_probability = float(model.predict_proba(df)[0, 1])
+    except Exception as e:
+        return jsonify({"error": f"Prediction failed: {str(e)}"}), 500
+
     is_fraud = bool(fraud_probability >= threshold)
 
     return jsonify({
