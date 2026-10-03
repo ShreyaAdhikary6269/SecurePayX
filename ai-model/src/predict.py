@@ -12,7 +12,7 @@ from src import config
 
 OPTIMAL_THRESHOLDS = {
     "creditcard": 0.9634,
-    "paysim": 0.5,
+    "paysim": 0.9190,
     "banksim": 0.5,
 }
 

@@ -19,10 +19,11 @@ from flask import Flask, request, jsonify
 import pandas as pd
 
 from src import config
+from src.calibration import load_calibration, apply_calibration
 
 app = Flask(__name__)
 
-# Tuned thresholds - update creditcard's value if you re-ran threshold_tuning.py
+# Fallback thresholds, used only when a dataset has no calibration files yet
 OPTIMAL_THRESHOLDS = {
     "creditcard": 0.9634,
     "paysim": 0.5,
@@ -30,6 +31,7 @@ OPTIMAL_THRESHOLDS = {
 }
 
 _cache = {}
+_calibration_cache = {}
 
 
 def load_artifacts(dataset_name):
@@ -42,6 +44,16 @@ def load_artifacts(dataset_name):
             scaler = pickle.load(f)
         _cache[dataset_name] = (model, scaler)
     return _cache[dataset_name]
+
+
+def get_calibration(dataset_name):
+    """Returns (calibrator, threshold) if calibrate_model.py has been run, else None."""
+    if dataset_name not in _calibration_cache:
+        loaded = load_calibration(dataset_name)
+        if loaded is None:
+            return None
+        _calibration_cache[dataset_name] = loaded
+    return _calibration_cache[dataset_name]
 
 
 def num(payload, key, default=0.0):
@@ -146,26 +158,38 @@ def predict(dataset_name):
     except Exception as e:
         return jsonify({"error": f"Bad input: {str(e)}"}), 400
 
-    threshold = OPTIMAL_THRESHOLDS.get(dataset_name, config.DEFAULT_THRESHOLD)
-
     try:
-        fraud_probability = float(model.predict_proba(df)[0, 1])
+        raw_probability = float(model.predict_proba(df)[0, 1])
     except Exception as e:
         return jsonify({"error": f"Prediction failed: {str(e)}"}), 500
+
+    calibration = get_calibration(dataset_name)
+    if calibration is not None:
+        calibrator, threshold = calibration
+        fraud_probability = float(apply_calibration(calibrator, [raw_probability])[0])
+    else:
+        threshold = OPTIMAL_THRESHOLDS.get(dataset_name, config.DEFAULT_THRESHOLD)
+        fraud_probability = raw_probability
 
     is_fraud = bool(fraud_probability >= threshold)
 
     return jsonify({
         "is_fraud": is_fraud,
         "fraud_probability": fraud_probability,
-        "threshold_used": threshold,
+        "threshold_used": round(threshold, 4),
+        "raw_probability": raw_probability,
+        "calibrated": calibration is not None,
         "payment_type": dataset_name,
     })
 
 
 @app.route("/", methods=["GET"])
 def health():
-    return jsonify({"status": "AI model service running", "active_datasets": config.ACTIVE_DATASETS})
+    return jsonify({
+        "status": "AI model service running",
+        "active_datasets": config.ACTIVE_DATASETS,
+        "calibrated": {name: get_calibration(name) is not None for name in config.ACTIVE_DATASETS},
+    })
 
 
 if __name__ == "__main__":
