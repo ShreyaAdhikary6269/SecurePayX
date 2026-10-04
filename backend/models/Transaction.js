@@ -1,8 +1,10 @@
 // In-memory "database" for logged fraud checks - resets on server restart.
-// Swap for a Mongoose version later; dashboardController.js won't need changes
-// as long as find() keeps returning an array sorted newest-first.
+// Swap for a Mongoose version later; callers rely on find() returning
+// an array sorted newest-first.
 let transactions = [];
 let idCounter = 1;
+
+const byNewest = (a, b) => b.createdAt - a.createdAt || Number(b._id) - Number(a._id);
 
 class Transaction {
   constructor({ user, paymentType, amount, fraudProbability, isFraud, thresholdUsed, rawInput }) {
@@ -24,9 +26,12 @@ class Transaction {
   }
 
   static async find({ user }) {
-    return transactions
-      .filter((t) => t.user === user)
-      .sort((a, b) => b.createdAt - a.createdAt || Number(b._id) - Number(a._id));
+    return transactions.filter((t) => t.user === user).sort(byNewest);
+  }
+
+  // Every user's transactions, newest first (used by the admin dashboard)
+  static async findAll() {
+    return [...transactions].sort(byNewest);
   }
 }
 

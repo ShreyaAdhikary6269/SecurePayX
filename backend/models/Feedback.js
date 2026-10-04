@@ -23,6 +23,11 @@ class Feedback {
   static async find({ user }) {
     return feedbackList.filter((f) => f.user === user);
   }
+
+  // All feedback, newest first (used by the admin dashboard)
+  static async findAll() {
+    return [...feedbackList].sort((a, b) => b.createdAt - a.createdAt || Number(b.id) - Number(a.id));
+  }
 }
 
 module.exports = Feedback;

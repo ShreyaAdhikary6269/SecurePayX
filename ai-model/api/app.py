@@ -11,6 +11,7 @@ Runs on port 8000 by default.
 
 import os
 import sys
+import json
 import pickle
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -26,7 +27,7 @@ app = Flask(__name__)
 # Fallback thresholds, used only when a dataset has no calibration files yet
 OPTIMAL_THRESHOLDS = {
     "creditcard": 0.9634,
-    "paysim": 0.5,
+    "paysim": 0.9190,
     "banksim": 0.5,
 }
 
@@ -180,6 +181,41 @@ def predict(dataset_name):
         "raw_probability": raw_probability,
         "calibrated": calibration is not None,
         "payment_type": dataset_name,
+    })
+
+
+@app.route("/model-info", methods=["GET"])
+def model_info():
+    """Status of every model plus the saved metrics. Used by the admin dashboard."""
+    metrics = {}
+    generated_at = None
+    metrics_path = os.path.join(config.OUTPUTS_DIR, "metrics_summary.json")
+    if os.path.exists(metrics_path):
+        with open(metrics_path) as f:
+            data = json.load(f)
+        metrics = data.get("models", {})
+        generated_at = data.get("generated_at")
+
+    models = {}
+    for name in config.ACTIVE_DATASETS:
+        paths = config.get_model_paths(name)
+        trained = os.path.exists(paths["xgboost"]) and os.path.exists(paths["scaler"])
+        calibration = get_calibration(name) if trained else None
+        if calibration is not None:
+            threshold = calibration[1]
+        else:
+            threshold = OPTIMAL_THRESHOLDS.get(name, config.DEFAULT_THRESHOLD)
+        models[name] = {
+            "trained": trained,
+            "calibrated": calibration is not None,
+            "threshold": round(threshold, 4),
+            "metrics": metrics.get(name),
+        }
+
+    return jsonify({
+        "status": "running",
+        "metrics_generated_at": generated_at,
+        "models": models,
     })
 
 

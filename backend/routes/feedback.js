@@ -15,6 +15,7 @@ router.post('/', auth, async (req, res) => {
       return res.status(400).json({ message: 'transactionId and a valid verdict are required' });
     }
 
+    // Only allow feedback on the user's own transactions
     const mine = await Transaction.find({ user: req.user.id });
     const tx = mine.find((t) => String(t.id) === String(transactionId));
     if (!tx) {

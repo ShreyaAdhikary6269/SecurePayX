@@ -27,6 +27,14 @@ function toProbability(value) {
   return Math.min(Math.max(Number(value), 0), 1)
 }
 
+// Two decimals, with readable labels at the extreme ends
+function formatPercent(p) {
+  const pct = p * 100
+  if (pct < 0.01) return '<0.01%'
+  if (pct > 99.99) return '>99.99%'
+  return `${pct.toFixed(2)}%`
+}
+
 /**
  * Half-circle risk meter.
  *   probability: fraud probability from 0 to 1 (the value the backend returns)
@@ -60,7 +68,7 @@ export default function RiskGauge({ probability, isFraud, threshold, className =
         viewBox="0 0 200 118"
         className="w-full max-w-[280px]"
         role="img"
-        aria-label={`${tier.label}, ${(p * 100).toFixed(1)} percent`}
+        aria-label={`${tier.label}, ${formatPercent(p)}`}
       >
         <path d={arcPath(0, 1)} fill="none" stroke="#F0F0F0" strokeWidth="16" />
         {TIERS.map((t) => (
@@ -87,7 +95,7 @@ export default function RiskGauge({ probability, isFraud, threshold, className =
         <text x="180" y="114" fontSize="9" textAnchor="middle" fill="#6B7280">100%</text>
       </svg>
 
-      <div className="font-serif text-3xl font-semibold text-ink -mt-1">{(p * 100).toFixed(1)}%</div>
+      <div className="font-serif text-3xl font-semibold text-ink -mt-1">{formatPercent(p)}</div>
       <div className="text-sm font-semibold mt-1" style={{ color: tier.color }}>
         {tier.label}
       </div>
@@ -106,8 +114,8 @@ export default function RiskGauge({ probability, isFraud, threshold, className =
       {(hasVerdict || cutoff != null) && (
         <p className="mt-3 max-w-[280px] text-center text-xs text-ink-muted leading-relaxed">
           {cutoffText
-            ? `Flagged only at or above the model's tuned threshold of ${cutoffText}, not at a fixed 50%.`
-            : "Flagged only above the model's tuned threshold, not at a fixed 50%."}
+            ? `Flagged only at or above the model's tuned threshold of ${cutoffText}.`
+            : "Flagged only at or above the model's tuned threshold."}
           {highButCleared && ' This score is in the High zone but below that cutoff, so it was cleared.'}
         </p>
       )}
