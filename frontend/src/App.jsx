@@ -14,6 +14,7 @@ import Profile from './pages/Profile';
 import AdminRoute from './components/AdminRoute';
 import AdminLayout from './components/admin/AdminLayout';
 import AdminOverview from './pages/admin/AdminOverview';
+import AdminUsers from './pages/admin/AdminUsers';
 
 // Placeholder for admin pages that are not built yet
 function AdminComingSoon() {
@@ -41,6 +42,7 @@ export default function App() {
 
       <Route element={<AdminRoute />}>
         <Route path="/admin" element={<AdminOverview />} />
+        <Route path="/admin/users" element={<AdminUsers />} />
         <Route path="/admin/*" element={<AdminComingSoon />} />
       </Route>
     </Routes>
