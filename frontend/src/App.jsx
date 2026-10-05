@@ -1,4 +1,4 @@
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 
 import Home from './pages/Home';
 import Login from './pages/Login';
@@ -6,25 +6,18 @@ import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import CheckTransaction from './pages/CheckTransaction';
 import Transactions from './pages/Transactions';
-import FraudAlerts from './pages/FraudAlerts';
+import FraudAlerts from './pages/Fraudalerts';
 import UploadTransaction from './pages/UploadTransaction';
 import Reports from './pages/Reports';
 import Profile from './pages/Profile';
 
-import AdminRoute from './components/AdminRoute';
-import AdminLayout from './components/admin/AdminLayout';
+import AdminRoute from './components/Adminroute';
 import AdminOverview from './pages/admin/AdminOverview';
 import AdminUsers from './pages/admin/AdminUsers';
-
-// Placeholder for admin pages that are not built yet
-function AdminComingSoon() {
-  return (
-    <AdminLayout>
-      <h1 className="font-serif text-2xl text-ink mb-1">Coming soon</h1>
-      <p className="text-ink-muted">This admin page has not been built yet.</p>
-    </AdminLayout>
-  );
-}
+import AdminTransactions from './pages/admin/AdminTransactions';
+import AdminFeedback from './pages/admin/AdminFeedback';
+import AdminModels from './pages/admin/AdminModels';
+import AdminAuditLog from './pages/admin/AdminAuditLog';
 
 export default function App() {
   return (
@@ -43,7 +36,11 @@ export default function App() {
       <Route element={<AdminRoute />}>
         <Route path="/admin" element={<AdminOverview />} />
         <Route path="/admin/users" element={<AdminUsers />} />
-        <Route path="/admin/*" element={<AdminComingSoon />} />
+        <Route path="/admin/transactions" element={<AdminTransactions />} />
+        <Route path="/admin/feedback" element={<AdminFeedback />} />
+        <Route path="/admin/models" element={<AdminModels />} />
+        <Route path="/admin/audit-log" element={<AdminAuditLog />} />
+        <Route path="/admin/*" element={<Navigate to="/admin" replace />} />
       </Route>
     </Routes>
   );
