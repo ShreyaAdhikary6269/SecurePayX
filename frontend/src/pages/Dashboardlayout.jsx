@@ -19,6 +19,7 @@ const LINKS = [
   { to: '/check', label: 'Check transaction' },
   { to: '/transactions', label: 'Transactions' },
   { to: '/alerts', label: 'Fraud alerts' },
+  { to: '/feedback', label: 'Feedback' },
   { to: '/upload', label: 'Batch upload' },
   { to: '/reports', label: 'Reports' },
   { to: '/profile', label: 'Profile' },
@@ -39,6 +40,25 @@ function isTokenExpired(token) {
 function Sidebar() {
   const navigate = useNavigate()
   const location = useLocation()
+  const [isAdmin, setIsAdmin] = React.useState(false)
+
+  // Ask the server whether this account is an admin (decides if the Admin link shows)
+  React.useEffect(() => {
+    const token = localStorage.getItem('token')
+    if (!token) return
+    let cancelled = false
+
+    fetch('http://localhost:5000/api/auth/me', { headers: { Authorization: `Bearer ${token}` } })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!cancelled && data && data.user && data.user.role === 'admin') setIsAdmin(true)
+      })
+      .catch(() => {})
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const handleLogout = () => {
     localStorage.removeItem('token')
@@ -48,7 +68,7 @@ function Sidebar() {
 
   return (
     <aside className="w-64 shrink-0 border-r border-line bg-white flex flex-col justify-between h-screen sticky top-0 z-20">
-      <div>
+      <div className="overflow-y-auto">
         <Link to="/" className="flex items-center gap-2.5 px-6 py-6 border-b border-line group">
           <ShieldMark className="w-8 h-8 transition-transform duration-300 group-hover:scale-110" />
           <span className="font-serif text-lg font-semibold text-ink">SecurePayX</span>
@@ -73,12 +93,23 @@ function Sidebar() {
           })}
         </nav>
       </div>
-      <button
-        onClick={handleLogout}
-        className="mx-3 mb-4 flex items-center gap-2 px-4 py-3 text-[15px] font-medium text-ink-muted hover:text-red-600 hover:bg-red-50 rounded-lg border border-line hover:border-red-200 transition-colors duration-200"
-      >
-        Sign out
-      </button>
+
+      <div className="px-3 pb-4">
+        {isAdmin && (
+          <Link
+            to="/admin"
+            className="flex items-center gap-2 px-4 py-3 mb-2 text-[15px] font-medium text-green bg-green-soft hover:bg-green hover:text-white rounded-lg transition-colors duration-200"
+          >
+            Admin area
+          </Link>
+        )}
+        <button
+          onClick={handleLogout}
+          className="w-full flex items-center gap-2 px-4 py-3 text-[15px] font-medium text-ink-muted hover:text-red-600 hover:bg-red-50 rounded-lg border border-line hover:border-red-200 transition-colors duration-200"
+        >
+          Sign out
+        </button>
+      </div>
     </aside>
   )
 }

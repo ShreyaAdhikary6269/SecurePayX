@@ -7,6 +7,7 @@ import Dashboard from './pages/Dashboard';
 import CheckTransaction from './pages/CheckTransaction';
 import Transactions from './pages/Transactions';
 import FraudAlerts from './pages/Fraudalerts';
+import Feedback from './pages/Feedback';
 import UploadTransaction from './pages/UploadTransaction';
 import Reports from './pages/Reports';
 import Profile from './pages/Profile';
@@ -29,6 +30,7 @@ export default function App() {
       <Route path="/check" element={<CheckTransaction />} />
       <Route path="/transactions" element={<Transactions />} />
       <Route path="/alerts" element={<FraudAlerts />} />
+      <Route path="/feedback" element={<Feedback />} />
       <Route path="/upload" element={<UploadTransaction />} />
       <Route path="/reports" element={<Reports />} />
       <Route path="/profile" element={<Profile />} />
@@ -44,4 +46,4 @@ export default function App() {
       </Route>
     </Routes>
   );
-}
+};
