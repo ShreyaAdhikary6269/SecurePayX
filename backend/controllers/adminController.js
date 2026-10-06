@@ -5,8 +5,13 @@ const AuditLog = require('../models/AuditLog');
 
 const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://127.0.0.1:8000';
 const PAYMENT_TYPES = ['creditcard', 'paysim', 'banksim'];
+const OBJECT_ID_RE = /^[0-9a-fA-F]{24}$/;
 
 // ---------- helpers ----------
+
+function escapeRegex(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
 
 function toInt(value, fallback, min, max) {
   const n = parseInt(value, 10);
@@ -14,18 +19,14 @@ function toInt(value, fallback, min, max) {
   return Math.min(Math.max(n, min), max);
 }
 
-function paginate(items, req, defaultLimit) {
+function pageParams(req, defaultLimit) {
   const page = toInt(req.query.page, 1, 1, 100000);
   const limit = toInt(req.query.limit, defaultLimit, 1, 100);
-  const total = items.length;
-  const start = (page - 1) * limit;
-  return {
-    rows: items.slice(start, start + limit),
-    page,
-    limit,
-    total,
-    totalPages: Math.max(1, Math.ceil(total / limit)),
-  };
+  return { page, limit, skip: (page - 1) * limit };
+}
+
+function pagingInfo(total, page, limit) {
+  return { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) };
 }
 
 function utcMidnight(daysAgo = 0) {
@@ -33,21 +34,13 @@ function utcMidnight(daysAgo = 0) {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - daysAgo));
 }
 
-function dayKey(date) {
-  return new Date(date).toISOString().slice(0, 10);
-}
-
-function text(value) {
-  return typeof value === 'string' ? value.trim().toLowerCase() : '';
-}
-
 async function logAction(req, action, target, details) {
   try {
-    await AuditLog.record({
-      adminId: req.user.id,
+    await AuditLog.create({
+      admin: req.user.id,
       adminEmail: req.user.email,
       action,
-      targetId: target ? target.id : undefined,
+      targetUser: target ? target._id : undefined,
       targetEmail: target ? target.email : undefined,
       details,
       ip: req.ip,
@@ -57,21 +50,9 @@ async function logAction(req, action, target, details) {
   }
 }
 
-// Number of checked / flagged transactions per user id
-function countByUser(transactions) {
-  const map = new Map();
-  transactions.forEach((t) => {
-    const row = map.get(t.user) || { checked: 0, flagged: 0 };
-    row.checked += 1;
-    if (t.isFraud) row.flagged += 1;
-    map.set(t.user, row);
-  });
-  return map;
-}
-
 function shapeUser(u, counts = {}) {
   return {
-    id: u.id,
+    id: String(u._id),
     email: u.email,
     role: u.role || 'user',
     isActive: u.isActive !== false,
@@ -86,58 +67,73 @@ function shapeUser(u, counts = {}) {
 
 exports.getStats = async (req, res) => {
   try {
-    const [users, transactions] = await Promise.all([User.all(), Transaction.findAll()]);
     const todayStart = utcMidnight(0);
+    const weekStart = utcMidnight(6);
 
-    const flagged = transactions.filter((t) => t.isFraud);
-    const checksToday = transactions.filter((t) => t.createdAt >= todayStart);
+    const [
+      totalUsers,
+      activeUsers,
+      adminCount,
+      totalTransactions,
+      totalFlagged,
+      checksToday,
+      flaggedToday,
+      byType,
+      daily,
+    ] = await Promise.all([
+      User.countDocuments(),
+      User.countDocuments({ isActive: { $ne: false } }),
+      User.countDocuments({ role: 'admin' }),
+      Transaction.countDocuments(),
+      Transaction.countDocuments({ isFraud: true }),
+      Transaction.countDocuments({ createdAt: { $gte: todayStart } }),
+      Transaction.countDocuments({ isFraud: true, createdAt: { $gte: todayStart } }),
+      Transaction.aggregate([
+        {
+          $group: {
+            _id: '$paymentType',
+            checked: { $sum: 1 },
+            flagged: { $sum: { $cond: ['$isFraud', 1, 0] } },
+            avgProbability: { $avg: '$fraudProbability' },
+          },
+        },
+      ]),
+      Transaction.aggregate([
+        { $match: { createdAt: { $gte: weekStart } } },
+        {
+          $group: {
+            _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+            checked: { $sum: 1 },
+            flagged: { $sum: { $cond: ['$isFraud', 1, 0] } },
+          },
+        },
+      ]),
+    ]);
 
-    const byTypeMap = new Map();
-    transactions.forEach((t) => {
-      const row = byTypeMap.get(t.paymentType) || {
-        paymentType: t.paymentType,
-        checked: 0,
-        flagged: 0,
-        probSum: 0,
-        probCount: 0,
-      };
-      row.checked += 1;
-      if (t.isFraud) row.flagged += 1;
-      if (t.fraudProbability != null) {
-        row.probSum += t.fraudProbability;
-        row.probCount += 1;
-      }
-      byTypeMap.set(t.paymentType, row);
-    });
-
+    // One entry per day for the last 7 days (UTC), zero when nothing happened
+    const dailyMap = new Map(daily.map((d) => [d._id, d]));
     const last7Days = [];
     for (let i = 6; i >= 0; i--) {
-      const key = dayKey(utcMidnight(i));
-      const dayRows = transactions.filter((t) => dayKey(t.createdAt) === key);
-      last7Days.push({
-        date: key,
-        checked: dayRows.length,
-        flagged: dayRows.filter((t) => t.isFraud).length,
-      });
+      const key = utcMidnight(i).toISOString().slice(0, 10);
+      const row = dailyMap.get(key);
+      last7Days.push({ date: key, checked: row ? row.checked : 0, flagged: row ? row.flagged : 0 });
     }
 
     res.json({
       stats: {
-        totalUsers: users.length,
-        activeUsers: users.filter((u) => u.isActive !== false).length,
-        adminCount: users.filter((u) => u.role === 'admin').length,
-        totalTransactions: transactions.length,
-        totalFlagged: flagged.length,
-        fraudRate: transactions.length
-          ? Number(((flagged.length / transactions.length) * 100).toFixed(2))
-          : 0,
-        checksToday: checksToday.length,
-        flaggedToday: checksToday.filter((t) => t.isFraud).length,
-        byType: [...byTypeMap.values()].map((r) => ({
-          paymentType: r.paymentType,
-          checked: r.checked,
-          flagged: r.flagged,
-          avgProbability: r.probCount ? Number((r.probSum / r.probCount).toFixed(4)) : null,
+        totalUsers,
+        activeUsers,
+        adminCount,
+        totalTransactions,
+        totalFlagged,
+        fraudRate: totalTransactions ? Number(((totalFlagged / totalTransactions) * 100).toFixed(2)) : 0,
+        checksToday,
+        flaggedToday,
+        byType: byType.map((t) => ({
+          paymentType: t._id,
+          checked: t.checked,
+          flagged: t.flagged,
+          avgProbability: t.avgProbability != null ? Number(t.avgProbability.toFixed(4)) : null,
         })),
         last7Days,
         note: 'Days are in UTC.',
@@ -153,19 +149,45 @@ exports.getStats = async (req, res) => {
 
 exports.listUsers = async (req, res) => {
   try {
-    const [allUsers, transactions] = await Promise.all([User.all(), Transaction.findAll()]);
+    const { page, limit, skip } = pageParams(req, 20);
 
-    const search = text(req.query.search);
-    let users = allUsers;
-    if (search) users = users.filter((u) => u.email.toLowerCase().includes(search));
-    if (['user', 'admin'].includes(req.query.role)) users = users.filter((u) => (u.role || 'user') === req.query.role);
-    if (req.query.status === 'active') users = users.filter((u) => u.isActive !== false);
-    if (req.query.status === 'inactive') users = users.filter((u) => u.isActive === false);
+    const filter = {};
+    const search = typeof req.query.search === 'string' ? req.query.search.trim() : '';
+    if (search) filter.email = { $regex: escapeRegex(search), $options: 'i' };
+    if (req.query.role === 'admin') filter.role = 'admin';
+    if (req.query.role === 'user') filter.role = { $ne: 'admin' };
+    if (req.query.status === 'active') filter.isActive = { $ne: false };
+    if (req.query.status === 'inactive') filter.isActive = false;
 
-    const counts = countByUser(transactions);
-    const { rows, ...paging } = paginate(users, req, 20);
+    const [total, users] = await Promise.all([
+      User.countDocuments(filter),
+      User.find(filter)
+        .select('email role isActive createdAt lastLoginAt')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+    ]);
 
-    res.json({ users: rows.map((u) => shapeUser(u, counts.get(u.id))), ...paging });
+    const ids = users.map((u) => u._id);
+    const counts = ids.length
+      ? await Transaction.aggregate([
+          { $match: { user: { $in: ids } } },
+          {
+            $group: {
+              _id: '$user',
+              checked: { $sum: 1 },
+              flagged: { $sum: { $cond: ['$isFraud', 1, 0] } },
+            },
+          },
+        ])
+      : [];
+    const countMap = new Map(counts.map((c) => [String(c._id), c]));
+
+    res.json({
+      users: users.map((u) => shapeUser(u, countMap.get(String(u._id)))),
+      ...pagingInfo(total, page, limit),
+    });
   } catch (err) {
     console.error('Admin users error:', err.message);
     res.status(500).json({ message: 'Could not load users' });
@@ -174,8 +196,10 @@ exports.listUsers = async (req, res) => {
 
 exports.updateUser = async (req, res) => {
   try {
-    const target = await User.findById(req.params.id);
-    if (!target) return res.status(404).json({ message: 'User not found' });
+    const { id } = req.params;
+    if (!OBJECT_ID_RE.test(id)) {
+      return res.status(400).json({ message: 'Invalid user id' });
+    }
 
     const { isActive, role } = req.body || {};
     if (isActive === undefined && role === undefined) {
@@ -188,9 +212,12 @@ exports.updateUser = async (req, res) => {
       return res.status(400).json({ message: "role must be 'user' or 'admin'" });
     }
 
+    const target = await User.findById(id).select('email role isActive');
+    if (!target) return res.status(404).json({ message: 'User not found' });
+
     const currentRole = target.role || 'user';
     const currentActive = target.isActive !== false;
-    const isSelf = target.id === req.user.id;
+    const isSelf = String(target._id) === req.user.id;
 
     const wantsDeactivate = isActive === false && currentActive;
     const wantsDemote = role !== undefined && role !== 'admin' && currentRole === 'admin';
@@ -200,35 +227,49 @@ exports.updateUser = async (req, res) => {
       return res.status(400).json({ message: 'You cannot deactivate or demote your own account' });
     }
     if (currentRole === 'admin' && (wantsDeactivate || wantsDemote)) {
-      const allUsers = await User.all();
-      const otherAdmins = allUsers.filter(
-        (u) => u.role === 'admin' && u.isActive !== false && u.id !== target.id
-      ).length;
+      const otherAdmins = await User.countDocuments({
+        role: 'admin',
+        isActive: { $ne: false },
+        _id: { $ne: target._id },
+      });
       if (otherAdmins === 0) {
         return res.status(400).json({ message: 'At least one active admin must remain' });
       }
     }
 
-    let changed = false;
-
+    const updates = {};
+    const changes = {};
     if (isActive !== undefined && isActive !== currentActive) {
-      target.isActive = isActive;
-      changed = true;
-      await logAction(req, isActive ? 'user.reactivate' : 'user.deactivate', target, {
-        from: currentActive,
-        to: isActive,
-      });
+      updates.isActive = isActive;
+      changes.isActive = { from: currentActive, to: isActive };
     }
     if (role !== undefined && role !== currentRole) {
-      target.role = role;
-      changed = true;
-      await logAction(req, 'user.role_change', target, { from: currentRole, to: role });
+      updates.role = role;
+      changes.role = { from: currentRole, to: role };
     }
 
-    const mine = await Transaction.find({ user: target.id });
-    const counts = { checked: mine.length, flagged: mine.filter((t) => t.isFraud).length };
+    if (Object.keys(updates).length > 0) {
+      // updateOne is used on purpose, so the password hook never runs
+      await User.updateOne({ _id: target._id }, { $set: updates });
 
-    res.json({ user: shapeUser(target, counts), message: changed ? 'User updated' : 'No changes needed' });
+      if (changes.isActive) {
+        await logAction(req, isActive ? 'user.reactivate' : 'user.deactivate', target, changes.isActive);
+      }
+      if (changes.role) {
+        await logAction(req, 'user.role_change', target, changes.role);
+      }
+    }
+
+    const updated = await User.findById(target._id).select('email role isActive createdAt lastLoginAt').lean();
+    const [checked, flagged] = await Promise.all([
+      Transaction.countDocuments({ user: target._id }),
+      Transaction.countDocuments({ user: target._id, isFraud: true }),
+    ]);
+
+    res.json({
+      user: shapeUser(updated, { checked, flagged }),
+      message: Object.keys(updates).length > 0 ? 'User updated' : 'No changes needed',
+    });
   } catch (err) {
     console.error('Admin update user error:', err.message);
     res.status(500).json({ message: 'Could not update user' });
@@ -239,54 +280,66 @@ exports.updateUser = async (req, res) => {
 
 exports.listTransactions = async (req, res) => {
   try {
-    const [users, allTransactions] = await Promise.all([User.all(), Transaction.findAll()]);
-    const emailById = new Map(users.map((u) => [u.id, u.email]));
+    const { page, limit, skip } = pageParams(req, 25);
+    const filter = {};
 
-    let rows = allTransactions;
+    if (PAYMENT_TYPES.includes(req.query.paymentType)) filter.paymentType = req.query.paymentType;
+    if (req.query.isFraud === 'true') filter.isFraud = true;
+    if (req.query.isFraud === 'false') filter.isFraud = false;
 
-    if (PAYMENT_TYPES.includes(req.query.paymentType)) {
-      rows = rows.filter((t) => t.paymentType === req.query.paymentType);
-    }
-    if (req.query.isFraud === 'true') rows = rows.filter((t) => t.isFraud === true);
-    if (req.query.isFraud === 'false') rows = rows.filter((t) => t.isFraud === false);
-
+    const dateFilter = {};
     if (req.query.from) {
       const from = new Date(req.query.from);
-      if (!Number.isNaN(from.getTime())) rows = rows.filter((t) => t.createdAt >= from);
+      if (!Number.isNaN(from.getTime())) dateFilter.$gte = from;
     }
     if (req.query.to) {
       const to = new Date(req.query.to);
-      if (!Number.isNaN(to.getTime())) {
-        const endOfDay = new Date(to.getTime() + 24 * 60 * 60 * 1000 - 1);
-        rows = rows.filter((t) => t.createdAt <= endOfDay);
-      }
+      if (!Number.isNaN(to.getTime())) dateFilter.$lte = new Date(to.getTime() + 24 * 60 * 60 * 1000 - 1);
     }
+    if (Object.keys(dateFilter).length) filter.createdAt = dateFilter;
 
+    const amountFilter = {};
     const min = parseFloat(req.query.minAmount);
     const max = parseFloat(req.query.maxAmount);
-    if (!Number.isNaN(min)) rows = rows.filter((t) => Number(t.amount) >= min);
-    if (!Number.isNaN(max)) rows = rows.filter((t) => Number(t.amount) <= max);
+    if (!Number.isNaN(min)) amountFilter.$gte = min;
+    if (!Number.isNaN(max)) amountFilter.$lte = max;
+    if (Object.keys(amountFilter).length) filter.amount = amountFilter;
 
-    const search = text(req.query.search);
+    // Search by user email
+    const search = typeof req.query.search === 'string' ? req.query.search.trim() : '';
     if (search) {
-      rows = rows.filter((t) => (emailById.get(t.user) || '').toLowerCase().includes(search));
+      const matches = await User.find({ email: { $regex: escapeRegex(search), $options: 'i' } })
+        .select('_id')
+        .lean();
+      filter.user = { $in: matches.map((u) => u._id) };
     }
 
-    const { rows: pageRows, ...paging } = paginate(rows, req, 25);
+    const [total, rows] = await Promise.all([
+      Transaction.countDocuments(filter),
+      Transaction.find(filter)
+        .select('-rawInput') // raw model inputs are never sent to the dashboard
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+    ]);
+
+    const userIds = [...new Set(rows.map((t) => String(t.user)))];
+    const users = userIds.length ? await User.find({ _id: { $in: userIds } }).select('email').lean() : [];
+    const emailById = new Map(users.map((u) => [String(u._id), u.email]));
 
     res.json({
-      transactions: pageRows.map((t) => ({
-        id: t.id,
-        userEmail: emailById.get(t.user) || 'unknown user',
+      transactions: rows.map((t) => ({
+        id: String(t._id),
+        userEmail: emailById.get(String(t.user)) || 'unknown user',
         paymentType: t.paymentType,
         amount: t.amount,
         fraudProbability: t.fraudProbability,
         isFraud: t.isFraud,
         thresholdUsed: t.thresholdUsed,
         createdAt: t.createdAt,
-        // rawInput is deliberately not sent to the dashboard
       })),
-      ...paging,
+      ...pagingInfo(total, page, limit),
     });
   } catch (err) {
     console.error('Admin transactions error:', err.message);
@@ -298,32 +351,43 @@ exports.listTransactions = async (req, res) => {
 
 exports.listFeedback = async (req, res) => {
   try {
-    const [feedbackList, users, transactions] = await Promise.all([
-      Feedback.findAll(),
-      User.all(),
-      Transaction.findAll(),
+    const { page, limit, skip } = pageParams(req, 25);
+
+    const [total, summary, items] = await Promise.all([
+      Feedback.countDocuments(),
+      Feedback.aggregate([{ $group: { _id: '$verdict', count: { $sum: 1 } } }]),
+      Feedback.find().sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
     ]);
-    const emailById = new Map(users.map((u) => [u.id, u.email]));
-    const txById = new Map(transactions.map((t) => [t.id, t]));
 
-    const confirmed = feedbackList.filter((f) => f.verdict === 'confirmed').length;
-    const notFraud = feedbackList.filter((f) => f.verdict === 'not_fraud').length;
-    const total = feedbackList.length;
+    const countOf = (verdict) => (summary.find((s) => s._id === verdict) || { count: 0 }).count;
+    const confirmed = countOf('confirmed');
+    const notFraud = countOf('not_fraud');
+    const answered = confirmed + notFraud;
 
-    const { rows, ...paging } = paginate(feedbackList, req, 25);
+    const userIds = [...new Set(items.map((f) => String(f.user)))];
+    const txIds = [...new Set(items.map((f) => String(f.transactionId)))];
+
+    const [users, transactions] = await Promise.all([
+      userIds.length ? User.find({ _id: { $in: userIds } }).select('email').lean() : [],
+      txIds.length
+        ? Transaction.find({ _id: { $in: txIds } }).select('paymentType fraudProbability').sort({ createdAt: -1 }).lean()
+        : [],
+    ]);
+    const emailById = new Map(users.map((u) => [String(u._id), u.email]));
+    const txById = new Map(transactions.map((t) => [String(t._id), t]));
 
     res.json({
       summary: {
-        total,
+        total: answered,
         confirmed,
         notFraud,
-        falseAlarmRate: total ? Number(((notFraud / total) * 100).toFixed(1)) : 0,
+        falseAlarmRate: answered ? Number(((notFraud / answered) * 100).toFixed(1)) : 0,
       },
-      feedback: rows.map((f) => {
+      feedback: items.map((f) => {
         const tx = txById.get(String(f.transactionId));
         return {
-          id: f.id,
-          userEmail: emailById.get(f.user) || 'unknown user',
+          id: String(f._id),
+          userEmail: emailById.get(String(f.user)) || 'unknown user',
           transactionId: String(f.transactionId),
           paymentType: tx ? tx.paymentType : null,
           fraudProbability: tx ? tx.fraudProbability : null,
@@ -331,7 +395,7 @@ exports.listFeedback = async (req, res) => {
           createdAt: f.createdAt,
         };
       }),
-      ...paging,
+      ...pagingInfo(total, page, limit),
     });
   } catch (err) {
     console.error('Admin feedback error:', err.message);
@@ -360,12 +424,15 @@ exports.getModels = async (req, res) => {
 
 exports.getAuditLog = async (req, res) => {
   try {
-    const entries = await AuditLog.findAll();
-    const { rows, ...paging } = paginate(entries, req, 30);
+    const { page, limit, skip } = pageParams(req, 30);
+    const [total, entries] = await Promise.all([
+      AuditLog.countDocuments(),
+      AuditLog.find().sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+    ]);
 
     res.json({
-      entries: rows.map((e) => ({
-        id: e.id,
+      entries: entries.map((e) => ({
+        id: String(e._id),
         adminEmail: e.adminEmail,
         action: e.action,
         targetEmail: e.targetEmail || null,
@@ -373,7 +440,7 @@ exports.getAuditLog = async (req, res) => {
         ip: e.ip || null,
         createdAt: e.createdAt,
       })),
-      ...paging,
+      ...pagingInfo(total, page, limit),
     });
   } catch (err) {
     console.error('Admin audit log error:', err.message);
