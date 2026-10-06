@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import Dashboardlayout from './Dashboardlayout';
+import DashboardLayout from './Dashboardlayout';
 
 const PAYMENT_TYPES = [
   { id: 'creditcard', label: 'Credit / debit card', columns: 'Amount, Time' },
@@ -95,7 +95,7 @@ export default function UploadTransactions() {
   const flaggedCount = results.filter((r) => r.is_fraud).length;
 
   return (
-    <Dashboardlayout>
+    <DashboardLayout>
       <h1 className="font-serif text-2xl text-ink mb-1">Batch upload</h1>
       <p className="text-ink-muted mb-8">Upload a CSV of transactions to check many at once.</p>
 
@@ -190,6 +190,6 @@ export default function UploadTransactions() {
           </div>
         </div>
       )}
-    </Dashboardlayout>
+    </DashboardLayout>
   );
 }

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import Dashboardlayout from './Dashboardlayout';
-import TransactionFilters from '../components/TransactionFilters';
-import ExportButton from '../components/ExportButton';
+import DashboardLayout from './Dashboardlayout';
+import TransactionFilters from '../components/Transactionfilters';
+import ExportButton from '../components/Exportbutton';
 
 const PAYMENT_TYPE_LABELS = {
   creditcard: 'Credit / debit card',
@@ -67,7 +67,7 @@ export default function Transactions() {
   }));
 
   return (
-    <Dashboardlayout>
+    <DashboardLayout>
       <div className="flex items-start justify-between gap-4 mb-1">
         <h1 className="font-serif text-2xl text-ink">Transactions</h1>
         <ExportButton
@@ -165,6 +165,6 @@ export default function Transactions() {
           </table>
         </div>
       )}
-    </Dashboardlayout>
+    </DashboardLayout>
   );
 }

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AdminLayout from '../../components/admin/AdminLayout'
-import { adminGet } from '../../components/admin/adminApi'
+import { adminGet } from '../../components/admin/AdminApi'
 import { Badge, Pager, TYPE_LABELS, fmtDateTime, formatPercent } from '../../components/admin/AdminUi'
 
 const PAGE_SIZE = 20

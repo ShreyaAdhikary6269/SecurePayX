@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import Dashboardlayout from './Dashboardlayout';
-import ExportButton from '../components/ExportButton';
+import DashboardLayout from './Dashboardlayout';
+import ExportButton from '../components/Exportbutton';
 
 const PAYMENT_TYPE_LABELS = {
   creditcard: 'Credit / debit card',
@@ -98,7 +98,7 @@ export default function Reports() {
   ];
 
   return (
-    <Dashboardlayout>
+    <DashboardLayout>
       <div className="flex items-start justify-between gap-4 mb-1">
         <h1 className="font-serif text-2xl text-ink">Reports</h1>
         {!loading && !error && totalChecked > 0 && (
@@ -212,6 +212,6 @@ export default function Reports() {
           </div>
         </>
       )}
-    </Dashboardlayout>
+    </DashboardLayout>
   );
 }

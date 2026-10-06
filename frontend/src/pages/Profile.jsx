@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import Dashboardlayout from './Dashboardlayout';
+import DashboardLayout from './Dashboardlayout';
 
 export default function Profile() {
   const navigate = useNavigate();
@@ -19,7 +19,7 @@ export default function Profile() {
   };
 
   return (
-    <Dashboardlayout>
+    <DashboardLayout>
       <h1 className="font-serif text-2xl text-ink mb-1">Profile</h1>
       <p className="text-ink-muted mb-8">Account settings and preferences.</p>
 
@@ -47,6 +47,6 @@ export default function Profile() {
           Sign out
         </button>
       </div>
-    </Dashboardlayout>
+    </DashboardLayout>
   );
 }

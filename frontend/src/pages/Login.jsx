@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 function ShieldMark() {
   return (
@@ -15,11 +15,15 @@ function ShieldMark() {
 }
 
 export default function Login() {
-  const [email, setEmail] = useState('');
+  const navigate = useNavigate();
+  const location = useLocation();
+  const justRegistered = !!(location.state && location.state.registered);
+
+  const [email, setEmail] = useState((location.state && location.state.email) || '');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -30,10 +34,10 @@ export default function Login() {
       const response = await fetch('http://localhost:5000/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
       });
 
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
         throw new Error(data.message || 'Login failed');
@@ -42,13 +46,20 @@ export default function Login() {
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
 
-      navigate('/');
+      navigate(data.user && data.user.role === 'admin' ? '/admin' : '/dashboard');
     } catch (err) {
-      setError(err.message);
+      setError(
+        err instanceof TypeError
+          ? 'Could not reach the server. Make sure the backend is running.'
+          : err.message
+      );
     } finally {
       setLoading(false);
     }
   };
+
+  const inputClass =
+    'w-full px-3.5 py-2.5 bg-bg border border-line text-ink text-sm focus:outline-none focus:border-green';
 
   return (
     <div className="min-h-screen bg-bg flex flex-col justify-center items-center px-4 sm:px-6 lg:px-8 text-ink font-sans">
@@ -68,39 +79,59 @@ export default function Login() {
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-bg border border-line py-8 px-4 sm:px-10">
+          {justRegistered && !error && (
+            <div className="mb-4 p-3 bg-green-soft border border-green/20 text-green text-xs text-center">
+              Account created. You can sign in now.
+            </div>
+          )}
+
           {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-xs text-center">
+            <div role="alert" className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-xs text-center">
               {error}
             </div>
           )}
 
           <form className="space-y-6" onSubmit={handleLogin}>
             <div>
-              <label className="block text-sm mb-1.5 text-ink-muted">
+              <label htmlFor="email" className="block text-sm mb-1.5 text-ink-muted">
                 Email address
               </label>
               <input
+                id="email"
                 type="email"
                 required
+                autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-bg border border-line text-ink text-sm focus:outline-none focus:border-green"
+                className={inputClass}
                 placeholder="you@example.com"
               />
             </div>
 
             <div>
-              <label className="block text-sm mb-1.5 text-ink-muted">
+              <label htmlFor="password" className="block text-sm mb-1.5 text-ink-muted">
                 Password
               </label>
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-bg border border-line text-ink text-sm focus:outline-none focus:border-green"
-                placeholder="********"
-              />
+              <div className="relative">
+                <input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className={`${inputClass} pr-16`}
+                  placeholder="********"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((s) => !s)}
+                  className="absolute inset-y-0 right-0 px-3 text-xs text-ink-muted hover:text-ink"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? 'Hide' : 'Show'}
+                </button>
+              </div>
             </div>
 
             <button

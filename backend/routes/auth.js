@@ -1,12 +1,17 @@
 const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const auth = require('../middleware/authMiddleware');
+const { checkPassword, MAX_LENGTH } = require('../utils/passwordPolicy');
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const MIN_PASSWORD_LENGTH = 8;
-const MAX_PASSWORD_LENGTH = 128;
+const MAX_FAILED_ATTEMPTS = 5;
+const LOCK_MINUTES = 15;
+
+// Used so that a login for an unknown email takes as long as a real one
+const DUMMY_HASH = bcrypt.hashSync('not-a-real-password-1', 12);
 
 function cleanEmail(email) {
   return typeof email === 'string' ? email.trim().toLowerCase() : '';
@@ -20,14 +25,10 @@ router.post('/register', async (req, res) => {
   if (!EMAIL_RE.test(email) || email.length > 254) {
     return res.status(400).json({ message: 'Please enter a valid email address' });
   }
-  if (
-    typeof password !== 'string' ||
-    password.length < MIN_PASSWORD_LENGTH ||
-    password.length > MAX_PASSWORD_LENGTH
-  ) {
-    return res
-      .status(400)
-      .json({ message: `Password must be ${MIN_PASSWORD_LENGTH} to ${MAX_PASSWORD_LENGTH} characters` });
+
+  const passwordProblem = checkPassword(password, email);
+  if (passwordProblem) {
+    return res.status(400).json({ message: passwordProblem });
   }
 
   try {
@@ -51,16 +52,44 @@ router.post('/login', async (req, res) => {
   const email = cleanEmail(req.body.email);
   const { password } = req.body;
 
-  if (!email || typeof password !== 'string' || password.length > MAX_PASSWORD_LENGTH) {
+  if (!email || typeof password !== 'string' || password.length > MAX_LENGTH) {
     return res.status(400).json({ message: 'Invalid credentials' });
   }
 
   try {
     const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ message: 'Invalid credentials' });
+
+    if (!user) {
+      await bcrypt.compare(password, DUMMY_HASH); // same time cost as a real check
+      return res.status(400).json({ message: 'Invalid credentials' });
+    }
+
+    // Locked after too many wrong passwords
+    if (user.lockUntil && user.lockUntil > new Date()) {
+      const minutes = Math.ceil((user.lockUntil - new Date()) / 60000);
+      return res.status(429).json({
+        message: `Too many failed attempts. Try again in ${minutes} minute${minutes === 1 ? '' : 's'}.`,
+      });
+    }
 
     const isMatch = await user.matchPassword(password);
-    if (!isMatch) return res.status(400).json({ message: 'Invalid credentials' });
+
+    if (!isMatch) {
+      const attempts = (user.failedLoginAttempts || 0) + 1;
+
+      if (attempts >= MAX_FAILED_ATTEMPTS) {
+        await User.updateOne(
+          { _id: user._id },
+          { $set: { failedLoginAttempts: 0, lockUntil: new Date(Date.now() + LOCK_MINUTES * 60000) } }
+        );
+        return res.status(429).json({
+          message: `Too many failed attempts. This account is locked for ${LOCK_MINUTES} minutes.`,
+        });
+      }
+
+      await User.updateOne({ _id: user._id }, { $set: { failedLoginAttempts: attempts } });
+      return res.status(400).json({ message: 'Invalid credentials' });
+    }
 
     // Only people with the right password learn that the account is switched off
     if (user.isActive === false) {
@@ -71,7 +100,10 @@ router.post('/login', async (req, res) => {
       expiresIn: '8h',
     });
 
-    User.updateOne({ _id: user._id }, { $set: { lastLoginAt: new Date() } }).catch(() => {});
+    await User.updateOne(
+      { _id: user._id },
+      { $set: { failedLoginAttempts: 0, lastLoginAt: new Date() }, $unset: { lockUntil: 1 } }
+    );
 
     res.json({
       token,
