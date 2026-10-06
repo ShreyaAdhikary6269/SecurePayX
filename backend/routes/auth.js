@@ -31,14 +31,16 @@ router.post('/register', async (req, res) => {
   }
 
   try {
-    let user = await User.findOne({ email });
-    if (user) return res.status(400).json({ message: 'User already exists' });
+    const existing = await User.findOne({ email }).select('_id');
+    if (existing) return res.status(400).json({ message: 'User already exists' });
 
-    user = new User({ email, password });
-    await user.save();
+    await new User({ email, password }).save();
 
     res.status(201).json({ message: 'User registered successfully' });
   } catch (err) {
+    if (err.code === 11000) {
+      return res.status(400).json({ message: 'User already exists' });
+    }
     console.error('Register error:', err.message);
     res.status(500).json({ message: 'Server error' });
   }
@@ -65,15 +67,15 @@ router.post('/login', async (req, res) => {
       return res.status(403).json({ message: 'This account has been deactivated. Contact an administrator.' });
     }
 
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+    const token = jwt.sign({ id: String(user._id) }, process.env.JWT_SECRET, {
       expiresIn: '8h',
     });
 
-    user.lastLoginAt = new Date();
+    User.updateOne({ _id: user._id }, { $set: { lastLoginAt: new Date() } }).catch(() => {});
 
     res.json({
       token,
-      user: { id: user._id, email: user.email, role: user.role || 'user' },
+      user: { id: String(user._id), email: user.email, role: user.role || 'user' },
     });
   } catch (err) {
     console.error('Login error:', err.message);

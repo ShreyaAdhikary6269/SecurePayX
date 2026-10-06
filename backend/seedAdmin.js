@@ -1,7 +1,5 @@
 const User = require('./models/User');
 
-// Memory resets on every restart, so the admin account is recreated at startup
-// from ADMIN_EMAIL and ADMIN_PASSWORD in backend/.env.
 async function seedAdmin() {
   const email = (process.env.ADMIN_EMAIL || '').trim().toLowerCase();
   const password = process.env.ADMIN_PASSWORD || '';
@@ -15,18 +13,19 @@ async function seedAdmin() {
     return;
   }
 
-  const existing = await User.findOne({ email });
+  const existing = await User.findOne({ email }).select('_id role isActive');
+
   if (existing) {
-    existing.role = 'admin';
-    existing.isActive = true;
-    await existing.save();
-    console.log(`Admin account updated: ${email}`);
+    // Make sure this account is an active admin (the password is left as it is)
+    if (existing.role !== 'admin' || existing.isActive === false) {
+      await User.updateOne({ _id: existing._id }, { $set: { role: 'admin', isActive: true } });
+    }
+    console.log(`Admin account ready: ${email}`);
     return;
   }
 
-  const admin = new User({ email, password, role: 'admin' });
-  await admin.save();
-  console.log(`Admin account ready: ${email}`);
+  await User.create({ email, password, role: 'admin' });
+  console.log(`Admin account created: ${email}`);
 }
 
 module.exports = seedAdmin;

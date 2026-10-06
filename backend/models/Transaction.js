@@ -1,38 +1,23 @@
-// In-memory "database" for logged fraud checks - resets on server restart.
-// Swap for a Mongoose version later; callers rely on find() returning
-// an array sorted newest-first.
-let transactions = [];
-let idCounter = 1;
+const mongoose = require('mongoose');
 
-const byNewest = (a, b) => b.createdAt - a.createdAt || Number(b._id) - Number(a._id);
+const transactionSchema = new mongoose.Schema(
+  {
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    paymentType: { type: String, enum: ['creditcard', 'paysim', 'banksim'], required: true },
+    amount: { type: Number, default: 0 },
+    fraudProbability: { type: Number },
+    isFraud: { type: Boolean, default: false },
+    thresholdUsed: { type: Number },
+    rawInput: { type: mongoose.Schema.Types.Mixed },
+  },
+  { timestamps: true }
+);
 
-class Transaction {
-  constructor({ user, paymentType, amount, fraudProbability, isFraud, thresholdUsed, rawInput }) {
-    this._id = String(idCounter++);
-    this.id = this._id; // frontend components read `id`
-    this.user = user;
-    this.paymentType = paymentType;
-    this.amount = amount;
-    this.fraudProbability = fraudProbability;
-    this.isFraud = isFraud;
-    this.thresholdUsed = thresholdUsed;
-    this.rawInput = rawInput;
-    this.createdAt = new Date();
-  }
+transactionSchema.index({ createdAt: -1 });
 
-  async save() {
-    transactions.push(this);
-    return this;
-  }
+// Newest first unless a query asks for a different order
+transactionSchema.pre('find', function () {
+  if (!this.getOptions().sort) this.sort({ createdAt: -1 });
+});
 
-  static async find({ user }) {
-    return transactions.filter((t) => t.user === user).sort(byNewest);
-  }
-
-  // Every user's transactions, newest first (used by the admin dashboard)
-  static async findAll() {
-    return [...transactions].sort(byNewest);
-  }
-}
-
-module.exports = Transaction;
+module.exports = mongoose.model('Transaction', transactionSchema);

@@ -1,6 +1,8 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
+const OBJECT_ID_RE = /^[0-9a-fA-F]{24}$/;
+
 module.exports = async function (req, res, next) {
   const authHeader = req.headers.authorization;
 
@@ -18,8 +20,12 @@ module.exports = async function (req, res, next) {
     return res.status(401).json({ message: 'Invalid or expired token' });
   }
 
+  if (!OBJECT_ID_RE.test(String(decoded.id))) {
+    return res.status(401).json({ message: 'Your login is out of date. Please log in again.' });
+  }
+
   try {
-    const user = await User.findById(decoded.id);
+    const user = await User.findById(decoded.id).select('email role isActive');
 
     if (!user) {
       return res.status(401).json({ message: 'This account no longer exists. Please log in again.' });
@@ -28,7 +34,7 @@ module.exports = async function (req, res, next) {
       return res.status(403).json({ message: 'This account has been deactivated' });
     }
 
-    req.user = { id: user._id, email: user.email, role: user.role || 'user' };
+    req.user = { id: String(user._id), email: user.email, role: user.role || 'user' };
     next();
   } catch (err) {
     console.error('Auth lookup error:', err.message);
