@@ -39,3 +39,10 @@ exports.chatLimiter = makeLimiter({
   limit: 12,
   message: 'You are sending messages too quickly. Please wait a moment.',
 });
+
+// File uploads: each one can score thousands of rows.
+exports.uploadLimiter = makeLimiter({
+  windowMs: 15 * 60 * 1000,
+  limit: 30,
+  message: 'Too many uploads. Please wait a few minutes and try again.',
+});
