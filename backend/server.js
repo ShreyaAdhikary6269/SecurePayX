@@ -11,7 +11,7 @@ if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
 
 const connectDB = require('./config/db');
 const seedAdmin = require('./seedAdmin');
-const { apiLimiter, loginLimiter, registerLimiter, chatLimiter } = require('./middleware/rateLimiters');
+const { apiLimiter, loginLimiter, registerLimiter, chatLimiter, uploadLimiter } = require('./middleware/rateLimiters');
 
 const authRoutes = require('./routes/auth');
 const dashboardRoutes = require('./routes/dashboard');
@@ -21,6 +21,7 @@ const alertRoutes = require('./routes/alerts');
 const feedbackRoutes = require('./routes/feedback');
 const chatRoutes = require('./routes/chat');
 const adminRoutes = require('./routes/admin');
+const uploadRoutes = require('./routes/upload'); // Added upload routes
 
 const app = express();
 
@@ -40,6 +41,9 @@ app.use('/api', apiLimiter);
 app.use('/api/auth/login', loginLimiter);
 app.use('/api/auth/register', registerLimiter);
 app.use('/api/chat', chatLimiter);
+if (uploadLimiter) {
+  app.use('/api/upload', uploadLimiter); // Applied rate limiter to upload if defined
+}
 
 app.use('/api/auth', authRoutes);
 app.use('/api/dashboard', dashboardRoutes);
@@ -49,6 +53,7 @@ app.use('/api/alerts', alertRoutes);
 app.use('/api/feedback', feedbackRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/upload', uploadRoutes); // Mounted upload routes
 
 app.get('/', (req, res) => {
   res.send('SecurePayX backend is running');
