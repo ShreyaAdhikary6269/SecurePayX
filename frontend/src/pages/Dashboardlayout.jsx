@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom'
 import NotificationBell from '../components/Notificationbell'
 import ChatWidget from '../components/Chatwidget'
 import AlertToaster from '../components/Alerttoaster'
+import SecurityBackground from '../components/Securitybackground'
 
 /* ---------- icons ---------- */
 function Icon({ children, className = 'w-5 h-5' }) {
@@ -370,7 +371,6 @@ function Sidebar() {
   )
 }
 
-/* ---------- layout ---------- */
 export default function DashboardLayout({ children }) {
   const navigate = useNavigate()
   const location = useLocation()
@@ -388,42 +388,46 @@ export default function DashboardLayout({ children }) {
   const today = new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })
 
   return (
-    <div className="min-h-screen font-sans flex relative isolate text-slate-800" style={{ background: '#F4F5FA' }}>
+    <div className="min-h-screen font-sans flex relative isolate text-slate-800 bg-bg">
       <style>{`
         @keyframes fade-in-up { from { opacity:0; transform:translateY(14px);} to {opacity:1; transform:translateY(0);} }
         @keyframes fade-in-left { from { opacity:0; transform:translateX(-10px);} to {opacity:1; transform:translateX(0);} }
         @keyframes pulse-dot { 0%,100% { opacity:1; } 50% { opacity:0.35; } }
         @keyframes float { 0%,100% { transform: translate3d(0,0,0); } 50% { transform: translate3d(16px,-20px,0); } }
         @keyframes gradient-shift { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+        @keyframes drift-slow { 0%,100% { transform:translate(0,0) scale(1);} 50% { transform:translate(40px,-30px) scale(1.08);} }
+        @keyframes drift-slower { 0%,100% { transform:translate(0,0) scale(1);} 50% { transform:translate(-50px,40px) scale(1.1);} }
         .animate-fade-in-up { animation: fade-in-up 0.6s cubic-bezier(0.22,1,0.36,1) both; }
         .animate-fade-in-left { animation: fade-in-left 0.45s ease-out both; }
         .animate-pulse-dot { animation: pulse-dot 1.6s ease-in-out infinite; }
         .animate-float { animation: float 10s ease-in-out infinite; }
+        .animate-drift-slow { animation: drift-slow 16s ease-in-out infinite; }
+        .animate-drift-slower { animation: drift-slower 20s ease-in-out infinite; }
+        .bg-security-grid {
+          background-image: linear-gradient(#059669 1px, transparent 1px), linear-gradient(90deg, #059669 1px, transparent 1px);
+          background-size: 48px 48px;
+        }
         .row-hover { transition: background-color 0.15s ease; }
-        .row-hover:hover { background-color: #F4F5FA; }
+        .row-hover:hover { background-color: #F0F7F3; }
         @media (prefers-reduced-motion: reduce) {
-          .animate-fade-in-up, .animate-fade-in-left, .animate-float { animation: none; }
+          .animate-fade-in-up, .animate-fade-in-left, .animate-float,
+          .animate-drift-slow, .animate-drift-slower { animation: none; }
         }
       `}</style>
 
+      {/* Same background as the Home page, fixed so it stays put while content scrolls */}
+    {/* Same background as Home, but softer */}
+<div className="fixed inset-0 -z-10 opacity-40 pointer-events-none">
+  <SecurityBackground className="absolute inset-0" density={60} />
+</div>
+<div className="fixed inset-0 -z-10 pointer-events-none">
+  <div className="absolute inset-0 bg-security-grid opacity-[0.015]" />
+  <div className="absolute -top-40 -left-40 w-[34rem] h-[34rem] rounded-full bg-green/5 blur-3xl animate-drift-slow" />
+  <div className="absolute top-1/4 -right-40 w-[30rem] h-[30rem] rounded-full bg-green-bright/5 blur-3xl animate-drift-slower" />
+</div>
       <Sidebar />
 
       <main className="flex-1 min-w-0 relative overflow-x-clip">
-        <div className="absolute inset-0 -z-10 pointer-events-none">
-          <div
-            className="absolute -top-24 right-0 w-[520px] h-[520px] rounded-full blur-3xl opacity-60"
-            style={{ background: 'radial-gradient(circle, rgba(129,140,248,0.35), transparent 70%)' }}
-          />
-          <div
-            className="absolute top-1/2 -left-24 w-[420px] h-[420px] rounded-full blur-3xl opacity-50"
-            style={{ background: 'radial-gradient(circle, rgba(52,211,153,0.18), transparent 70%)' }}
-          />
-          <div
-            className="absolute bottom-0 right-1/4 w-[380px] h-[380px] rounded-full blur-3xl opacity-40"
-            style={{ background: 'radial-gradient(circle, rgba(168,85,247,0.18), transparent 70%)' }}
-          />
-        </div>
-
         <div className="relative z-10">
           <header
             className="sticky top-0 z-20 flex items-center justify-between gap-3 px-8 py-3.5 border-b border-slate-200/60 backdrop-blur-xl"
