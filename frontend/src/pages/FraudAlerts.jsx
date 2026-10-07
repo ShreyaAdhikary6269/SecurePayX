@@ -51,79 +51,97 @@ export default function FraudAlerts() {
 
   return (
     <DashboardLayout>
-      <h1 className="font-serif text-2xl text-ink mb-1">Fraud alerts</h1>
-      <p className="text-ink-muted mb-6">Transactions that were flagged as fraud, filterable by payment type.</p>
-
-      {!loading && !error && (
-        <div className="mb-6 flex items-center gap-2 text-sm">
-          <span className="w-2 h-2 rounded-full bg-red-600" />
-          <span className="text-ink">{flagged.length}</span>
-          <span className="text-ink-muted">flagged out of {transactions.length} checked</span>
-        </div>
-      )}
-
-      <div className="flex flex-wrap gap-2 mb-6">
-        {FILTERS.map((f) => (
-          <button
-            key={f.id}
-            onClick={() => setFilter(f.id)}
-            className={`px-3.5 py-1.5 text-sm border transition-colors ${
-              filter === f.id
-                ? 'border-green text-green bg-green-soft'
-                : 'border-line text-ink-muted hover:text-ink'
-            }`}
-          >
-            {f.label}
-          </button>
-        ))}
-      </div>
-
-      {loading && <p className="text-sm text-ink-muted">Loading fraud alerts...</p>}
-
-      {error && (
-        <div className="mb-6 p-3 bg-red-50 border border-red-200 text-red-700 text-sm">
-          {error}
-        </div>
-      )}
-
-      {!loading && !error && filtered.length === 0 && (
-        <div className="border border-line border-dashed p-10 text-center">
-          <p className="text-sm text-ink-muted">
-            {flagged.length === 0
-              ? 'No fraud has been flagged yet.'
-              : 'No flagged transactions match this filter.'}
+      <div className="max-w-6xl">
+        {/* Header with emerald green styling and smooth hover effect */}
+        <div className="mb-8 cursor-default inline-block transition-transform duration-300 hover:translate-x-1.5 hover:scale-[1.01]">
+          <h1 className="text-3xl font-normal text-emerald-900 tracking-tight mb-2">
+            Fraud alerts
+          </h1>
+          <p className="text-emerald-700/80 text-base font-normal">
+            Transactions that were flagged as fraud, filterable by payment type.
           </p>
         </div>
-      )}
 
-      {!loading && !error && filtered.length > 0 && (
-        <div className="border border-red-200 overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-red-200 bg-red-50 text-left text-red-700">
-                <th className="px-4 py-3 font-normal">Type</th>
-                <th className="px-4 py-3 font-normal">Amount</th>
-                <th className="px-4 py-3 font-normal">Fraud probability</th>
-                <th className="px-4 py-3 font-normal">Flagged</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-line">
-              {filtered.map((tx) => (
-                <tr key={tx.id} className="hover:bg-bg-subtle transition-colors">
-                  <td className="px-4 py-3 text-ink-muted">
-                    {PAYMENT_TYPE_LABELS[tx.paymentType] || tx.paymentType}
-                  </td>
-                  <td className="px-4 py-3 text-ink">{tx.amount}</td>
-                  <td className="px-4 py-3 text-red-700">
-                    {tx.fraudProbability != null ? `${(tx.fraudProbability * 100).toFixed(2)}%` : '-'}
-                  </td>
-                  <td className="px-4 py-3 text-ink-muted">{tx.checkedAt}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        {!loading && !error && (
+          <div className="mb-6 flex items-center gap-2.5 px-4 py-3 bg-rose-50/60 border border-rose-200/80 rounded-xl text-sm w-fit shadow-sm">
+            <span className="w-2.5 h-2.5 rounded-full bg-rose-600 animate-pulse" />
+            <span className="font-medium text-rose-900">{flagged.length}</span>
+            <span className="text-rose-700/80">flagged out of {transactions.length} checked</span>
+          </div>
+        )}
+
+        {/* Prominent Filter Buttons with soft emerald green active states */}
+        <div className="flex flex-wrap gap-3 mb-8">
+          {FILTERS.map((f) => {
+            const isActive = filter === f.id;
+            return (
+              <button
+                key={f.id}
+                onClick={() => setFilter(f.id)}
+                className={`px-5 py-2.5 text-sm font-normal rounded-xl border transition-all duration-200 active:scale-[0.98] shadow-sm ${
+                  isActive
+                    ? 'border-emerald-500 bg-emerald-50 text-emerald-800 ring-2 ring-emerald-500/20 shadow-emerald-500/5'
+                    : 'border-slate-200 bg-white text-slate-600 hover:border-emerald-300 hover:text-slate-900 hover:bg-slate-50'
+                }`}
+              >
+                {f.label}
+              </button>
+            );
+          })}
         </div>
-      )}
+
+        {loading && (
+          <div className="py-12 text-center text-sm text-slate-500 font-normal">
+            Loading fraud alerts...
+          </div>
+        )}
+
+        {error && (
+          <div className="mb-6 p-4 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-sm flex items-center gap-2.5">
+            <svg className="w-5 h-5 shrink-0 text-rose-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01"/></svg>
+            <span>{error}</span>
+          </div>
+        )}
+
+        {!loading && !error && filtered.length === 0 && (
+          <div className="border border-slate-200 border-dashed rounded-2xl p-12 text-center bg-white shadow-sm">
+            <p className="text-sm text-slate-500 font-normal">
+              {flagged.length === 0
+                ? 'No fraud has been flagged yet.'
+                : 'No flagged transactions match this filter.'}
+            </p>
+          </div>
+        )}
+
+        {!loading && !error && filtered.length > 0 && (
+          <div className="bg-white border border-rose-200/80 shadow-sm rounded-2xl overflow-hidden">
+            <table className="w-full text-sm text-left">
+              <thead>
+                <tr className="border-b border-rose-100 bg-rose-50/50 text-rose-800 text-xs uppercase tracking-wider font-normal">
+                  <th className="px-6 py-4">Type</th>
+                  <th className="px-6 py-4">Amount</th>
+                  <th className="px-6 py-4">Fraud probability</th>
+                  <th className="px-6 py-4">Flagged</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filtered.map((tx) => (
+                  <tr key={tx.id} className="hover:bg-slate-50/80 transition-colors">
+                    <td className="px-6 py-4 font-normal text-slate-900">
+                      {PAYMENT_TYPE_LABELS[tx.paymentType] || tx.paymentType}
+                    </td>
+                    <td className="px-6 py-4 text-slate-700 font-normal">{tx.amount}</td>
+                    <td className="px-6 py-4 text-rose-700 font-normal">
+                      {tx.fraudProbability != null ? `${(tx.fraudProbability * 100).toFixed(2)}%` : '-'}
+                    </td>
+                    <td className="px-6 py-4 text-slate-500 text-xs font-normal">{tx.checkedAt}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </DashboardLayout>
   );
 }

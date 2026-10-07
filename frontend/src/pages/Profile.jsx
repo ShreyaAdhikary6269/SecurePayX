@@ -20,32 +20,43 @@ export default function Profile() {
 
   return (
     <DashboardLayout>
-      <h1 className="font-serif text-2xl text-ink mb-1">Profile</h1>
-      <p className="text-ink-muted mb-8">Account settings and preferences.</p>
-
-      <div className="border border-line max-w-lg">
-        <div className="border-b border-line px-5 py-4">
-          <h2 className="font-serif text-lg text-ink">Account</h2>
+      <div className="max-w-6xl">
+        {/* Header with emerald theme and smooth hover effect */}
+        <div className="mb-8 cursor-default inline-block transition-transform duration-300 hover:translate-x-1.5 hover:scale-[1.01]">
+          <h1 className="text-3xl font-normal text-emerald-800 tracking-tight mb-2">
+            Profile
+          </h1>
+          <p className="text-emerald-700/80 text-base font-normal">
+            Account settings and preferences.
+          </p>
         </div>
-        <div className="divide-y divide-line">
-          <div className="flex items-center justify-between px-5 py-4 text-sm">
-            <span className="text-ink-muted">Email</span>
-            <span className="text-ink">{user?.email || 'Not available'}</span>
+
+        {/* Account Details Card */}
+        <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm max-w-xl overflow-hidden mb-8">
+          <div className="px-6 py-4 bg-slate-50/50 border-b border-slate-100">
+            <h2 className="text-base font-normal text-slate-900">Account</h2>
           </div>
-          <div className="flex items-center justify-between px-5 py-4 text-sm">
-            <span className="text-ink-muted">Account ID</span>
-            <span className="text-ink-muted">{user?.id || '-'}</span>
+          <div className="divide-y divide-slate-100 text-sm">
+            <div className="flex items-center justify-between px-6 py-4">
+              <span className="text-slate-500 font-normal">Email</span>
+              <span className="text-slate-900 font-normal">{user?.email || 'Not available'}</span>
+            </div>
+            <div className="flex items-center justify-between px-6 py-4">
+              <span className="text-slate-500 font-normal">Account ID</span>
+              <span className="text-slate-500 font-normal">{user?.id || '-'}</span>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div className="mt-8 max-w-lg">
-        <button
-          onClick={handleLogout}
-          className="px-4 py-2 text-sm border border-line text-ink hover:border-red-300 hover:text-red-700 transition-colors"
-        >
-          Sign out
-        </button>
+        {/* Sign out button */}
+        <div className="max-w-xl">
+          <button
+            onClick={handleLogout}
+            className="px-5 py-3 text-sm font-normal text-rose-700 bg-rose-50 border border-rose-200 hover:bg-rose-100/70 rounded-xl transition-all shadow-sm active:scale-[0.98]"
+          >
+            Sign out
+          </button>
+        </div>
       </div>
     </DashboardLayout>
   );

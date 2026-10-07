@@ -68,103 +68,123 @@ export default function Transactions() {
 
   return (
     <DashboardLayout>
-      <div className="flex items-start justify-between gap-4 mb-1">
-        <h1 className="font-serif text-2xl text-ink">Transactions</h1>
-        <ExportButton
-          data={exportRows}
-          filename="transactions"
-          columns={[
-            { key: 'id', label: 'Transaction ID' },
-            { key: 'paymentType', label: 'Payment type' },
-            { key: 'amount', label: 'Amount' },
-            { key: 'fraudProbability', label: 'Fraud probability' },
-            { key: 'result', label: 'Result' },
-            { key: 'checkedAt', label: 'Checked' },
-          ]}
-        />
-      </div>
-      <p className="text-ink-muted mb-6">All transactions you have checked, across every payment type.</p>
-
-      <div className="flex flex-wrap gap-2 mb-6">
-        {FILTERS.map((f) => (
-          <button
-            key={f.id}
-            onClick={() => setFilter(f.id)}
-            className={`px-3.5 py-1.5 text-sm border transition-colors ${
-              filter === f.id
-                ? 'border-green text-green bg-green-soft'
-                : 'border-line text-ink-muted hover:text-ink'
-            }`}
-          >
-            {f.label}
-          </button>
-        ))}
-      </div>
-
-      {!loading && !error && transactions.length > 0 && (
-        <TransactionFilters transactions={filterInput} onFilteredChange={setVisible} />
-      )}
-
-      {loading && <p className="text-sm text-ink-muted">Loading transactions...</p>}
-
-      {error && (
-        <div className="mb-6 p-3 bg-red-50 border border-red-200 text-red-700 text-sm">
-          {error}
+      <div className="max-w-6xl">
+        {/* Header with emerald green styling and hover effect */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+          <div className="cursor-default inline-block transition-transform duration-300 hover:translate-x-1.5 hover:scale-[1.01]">
+            <h1 className="text-3xl font-normal text-emerald-900 tracking-tight mb-2">
+              Transactions
+            </h1>
+            <p className="text-emerald-700/80 text-base font-normal">
+              All transactions you have checked, across every payment type.
+            </p>
+          </div>
+          <ExportButton
+            data={exportRows}
+            filename="transactions"
+            columns={[
+              { key: 'id', label: 'Transaction ID' },
+              { key: 'paymentType', label: 'Payment type' },
+              { key: 'amount', label: 'Amount' },
+              { key: 'fraudProbability', label: 'Fraud probability' },
+              { key: 'result', label: 'Result' },
+              { key: 'checkedAt', label: 'Checked' },
+            ]}
+          />
         </div>
-      )}
 
-      {!loading && !error && visible.length === 0 && (
-        <div className="border border-line border-dashed p-10 text-center">
-          <p className="text-sm text-ink-muted">
-            {transactions.length === 0
-              ? 'No transactions checked yet.'
-              : 'No transactions match this filter.'}
-          </p>
+        {/* Prominent Filter Buttons */}
+        <div className="flex flex-wrap gap-3 mb-8">
+          {FILTERS.map((f) => {
+            const isActive = filter === f.id;
+            return (
+              <button
+                key={f.id}
+                onClick={() => setFilter(f.id)}
+                className={`px-5 py-2.5 text-sm font-normal rounded-xl border transition-all duration-200 active:scale-[0.98] shadow-sm ${
+                  isActive
+                    ? 'border-emerald-500 bg-emerald-50 text-emerald-800 ring-2 ring-emerald-500/20 shadow-emerald-500/5'
+                    : 'border-slate-200 bg-white text-slate-600 hover:border-emerald-300 hover:text-slate-900 hover:bg-slate-50'
+                }`}
+              >
+                {f.label}
+              </button>
+            );
+          })}
         </div>
-      )}
 
-      {!loading && !error && visible.length > 0 && (
-        <div className="border border-line overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-line text-left text-ink-muted">
-                <th className="px-4 py-3 font-normal">Type</th>
-                <th className="px-4 py-3 font-normal">Amount</th>
-                <th className="px-4 py-3 font-normal">Fraud probability</th>
-                <th className="px-4 py-3 font-normal">Result</th>
-                <th className="px-4 py-3 font-normal">Checked</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-line">
-              {visible.map((tx) => (
-                <tr key={tx.id} className="hover:bg-bg-subtle transition-colors">
-                  <td className="px-4 py-3 text-ink-muted">
-                    {PAYMENT_TYPE_LABELS[tx.paymentType] || tx.paymentType}
-                  </td>
-                  <td className="px-4 py-3 text-ink">{tx.amount}</td>
-                  <td className="px-4 py-3 text-ink-muted">
-                    {tx.fraudProbability != null ? `${(tx.fraudProbability * 100).toFixed(2)}%` : '-'}
-                  </td>
-                  <td className="px-4 py-3">
-                    {tx.isFraud ? (
-                      <span className="inline-flex items-center gap-1.5 text-red-700">
-                        <span className="w-1.5 h-1.5 rounded-full bg-red-600" />
-                        Flagged
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1.5 text-green">
-                        <span className="w-1.5 h-1.5 rounded-full bg-green" />
-                        Cleared
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-ink-muted">{tx.checkedAt}</td>
+        {!loading && !error && transactions.length > 0 && (
+          <div className="mb-6">
+            <TransactionFilters transactions={filterInput} onFilteredChange={setVisible} />
+          </div>
+        )}
+
+        {loading && (
+          <div className="py-12 text-center text-sm text-slate-500 font-normal">
+            Loading transactions...
+          </div>
+        )}
+
+        {error && (
+          <div className="mb-6 p-4 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-sm flex items-center gap-2.5">
+            <svg className="w-5 h-5 shrink-0 text-rose-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01"/></svg>
+            <span>{error}</span>
+          </div>
+        )}
+
+        {!loading && !error && visible.length === 0 && (
+          <div className="border border-slate-200 border-dashed rounded-2xl p-12 text-center bg-white shadow-sm">
+            <p className="text-sm text-slate-500 font-normal">
+              {transactions.length === 0
+                ? 'No transactions checked yet.'
+                : 'No transactions match this filter.'}
+            </p>
+          </div>
+        )}
+
+        {!loading && !error && visible.length > 0 && (
+          <div className="bg-white border border-slate-200/80 shadow-sm rounded-2xl overflow-hidden">
+            <table className="w-full text-sm text-left">
+              <thead>
+                <tr className="border-b border-slate-100 bg-slate-50/70 text-slate-500 text-xs uppercase tracking-wider font-normal">
+                  <th className="px-6 py-4">Type</th>
+                  <th className="px-6 py-4">Amount</th>
+                  <th className="px-6 py-4">Fraud probability</th>
+                  <th className="px-6 py-4">Result</th>
+                  <th className="px-6 py-4">Checked</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {visible.map((tx) => (
+                  <tr key={tx.id} className="hover:bg-slate-50/80 transition-colors">
+                    <td className="px-6 py-4 font-normal text-slate-900">
+                      {PAYMENT_TYPE_LABELS[tx.paymentType] || tx.paymentType}
+                    </td>
+                    <td className="px-6 py-4 text-slate-700 font-normal">{tx.amount}</td>
+                    <td className="px-6 py-4 text-slate-600 font-normal">
+                      {tx.fraudProbability != null ? `${(tx.fraudProbability * 100).toFixed(2)}%` : '-'}
+                    </td>
+                    <td className="px-6 py-4 font-normal">
+                      {tx.isFraud ? (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-normal bg-rose-50 text-rose-700 border border-rose-200">
+                          <span className="w-1.5 h-1.5 rounded-full bg-rose-600 animate-pulse" />
+                          Flagged
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-normal bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                          Cleared
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 text-slate-500 text-xs font-normal">{tx.checkedAt}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </DashboardLayout>
   );
 }
