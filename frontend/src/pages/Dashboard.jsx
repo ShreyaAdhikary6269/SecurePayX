@@ -4,6 +4,7 @@ import DashboardLayout from './Dashboardlayout'
 import TimeOfDayChart from '../components/Timeofdaychart'
 
 const API = 'http://localhost:5000'
+const REQUEST_TIMEOUT_MS = 20000
 
 const PAYMENT_TYPE_LABELS = {
   creditcard: 'Credit / debit card',
@@ -125,7 +126,7 @@ function Card({ children, className = '', delay = 0 }) {
   return (
     <div className={`animate-fade-in-up ${className}`} style={{ animationDelay: `${delay}ms` }}>
       <div
-        className="h-full rounded-2xl border border-line bg-white/85 p-6 backdrop-blur transition-all duration-300 hover:-translate-y-0.5 hover:border-green/40"
+        className="h-full rounded-2xl border border-line bg-white/90 p-6 transition-[transform,border-color] duration-300 hover:-translate-y-0.5 hover:border-green/40"
         style={{ boxShadow: CARD_SHADOW }}
       >
         {children}
@@ -214,10 +215,7 @@ function HeroBanner({ stats, transactions, updatedAt }) {
 
   return (
     <div className="animate-fade-in-up relative overflow-hidden rounded-3xl mb-6 text-white" style={{ boxShadow: '0 24px 50px -24px rgba(6,78,59,.6)' }}>
-      <div
-        className="absolute inset-0"
-        style={{ background: HERO_GRADIENT, backgroundSize: '300% 300%', animation: 'gradient-shift 20s ease infinite' }}
-      />
+      <div className="absolute inset-0" style={{ background: HERO_GRADIENT }} />
       <div
         className="absolute -top-16 -right-10 w-72 h-72 rounded-full animate-float"
         style={{ background: 'radial-gradient(circle, rgba(52,211,153,0.50), transparent 70%)' }}
@@ -227,8 +225,8 @@ function HeroBanner({ stats, transactions, updatedAt }) {
         style={{ background: 'radial-gradient(circle, rgba(20,184,166,0.35), transparent 70%)', animationDelay: '-4s' }}
       />
       <div
-        className="absolute top-12 left-8 w-44 h-44 rounded-full animate-float"
-        style={{ background: 'radial-gradient(circle, rgba(251,191,36,0.20), transparent 70%)', animationDelay: '-7s' }}
+        className="absolute top-12 left-8 w-44 h-44 rounded-full"
+        style={{ background: 'radial-gradient(circle, rgba(251,191,36,0.20), transparent 70%)' }}
       />
       <div
         className="absolute inset-0 opacity-[0.12]"
@@ -276,8 +274,8 @@ function HeroBanner({ stats, transactions, updatedAt }) {
           </div>
 
           <div
-            className="lg:col-span-2 rounded-2xl p-4 border border-white/15 backdrop-blur-md"
-            style={{ background: 'rgba(255,255,255,0.07)' }}
+            className="lg:col-span-2 rounded-2xl p-4 border border-white/15"
+            style={{ background: 'rgba(255,255,255,0.08)' }}
           >
             <div className="flex items-center justify-between mb-1">
               <span className="text-xs text-emerald-100/80">Recent risk trend</span>
@@ -291,8 +289,8 @@ function HeroBanner({ stats, transactions, updatedAt }) {
           {tiles.map((t) => (
             <div
               key={t.label}
-              className="rounded-2xl p-4 border border-white/15 backdrop-blur-md transition-all duration-300 hover:-translate-y-0.5 hover:bg-white/15"
-              style={{ background: 'rgba(255,255,255,0.08)' }}
+              className="rounded-2xl p-4 border border-white/15 transition-[transform,background-color] duration-300 hover:-translate-y-0.5 hover:bg-white/15"
+              style={{ background: 'rgba(255,255,255,0.09)' }}
             >
               <div className="font-serif text-3xl font-semibold">
                 <AnimatedNumber value={t.value} />
@@ -672,19 +670,29 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [updatedAt, setUpdatedAt] = useState(null)
+  const [reloadKey, setReloadKey] = useState(0)
+
+  const retry = () => {
+    setLoading(true)
+    setError('')
+    setReloadKey((k) => k + 1)
+  }
 
   useEffect(() => {
     const token = localStorage.getItem('token')
     if (!token) return
-    const headers = { Authorization: `Bearer ${token}` }
+
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+    const options = { headers: { Authorization: `Bearer ${token}` }, signal: controller.signal }
     let cancelled = false
 
     const load = async () => {
       try {
         const [statsRes, txRes, fbRes] = await Promise.all([
-          fetch(`${API}/api/dashboard/stats`, { headers }),
-          fetch(`${API}/api/transactions`, { headers }),
-          fetch(`${API}/api/feedback`, { headers }).catch(() => null),
+          fetch(`${API}/api/dashboard/stats`, options),
+          fetch(`${API}/api/transactions`, options),
+          fetch(`${API}/api/feedback`, options).catch(() => null),
         ])
         if (cancelled) return
 
@@ -715,8 +723,14 @@ export default function Dashboard() {
 
         setUpdatedAt(new Date())
       } catch (err) {
-        if (!cancelled) setError(err.message)
+        if (cancelled) return
+        setError(
+          err.name === 'AbortError'
+            ? 'The server took too long to answer. Please try again.'
+            : err.message || 'Could not load dashboard data'
+        )
       } finally {
+        clearTimeout(timer)
         if (!cancelled) setLoading(false)
       }
     }
@@ -724,8 +738,10 @@ export default function Dashboard() {
     load()
     return () => {
       cancelled = true
+      clearTimeout(timer)
+      controller.abort()
     }
-  }, [navigate])
+  }, [navigate, reloadKey])
 
   return (
     <DashboardLayout>
@@ -734,12 +750,20 @@ export default function Dashboard() {
       ) : (
         <>
           {error && (
-            <div className="mb-6 p-4 bg-rose-50 border border-rose-200 text-rose-700 text-sm rounded-xl">{error}</div>
+            <div className="mb-6 p-4 bg-rose-50 border border-rose-200 text-rose-700 text-sm rounded-xl flex flex-wrap items-center justify-between gap-3">
+              <span>{error}</span>
+              <button
+                onClick={retry}
+                className="px-4 py-1.5 text-sm font-medium text-white bg-rose-600 hover:bg-rose-700 rounded-lg transition-colors"
+              >
+                Try again
+              </button>
+            </div>
           )}
 
-          <HeroBanner stats={stats} transactions={transactions} updatedAt={updatedAt} />
+          {stats && <HeroBanner stats={stats} transactions={transactions} updatedAt={updatedAt} />}
 
-          {!error && (
+          {stats && !error && (
             <>
               <div className="grid lg:grid-cols-3 gap-5 mb-5">
                 <RiskDonut transactions={transactions} />

@@ -32,7 +32,7 @@ export default function TimeOfDayChart({ transactions, delay = 0 }) {
   return (
     <div className="animate-fade-in-up" style={{ animationDelay: `${delay}ms` }}>
       <div
-        className="rounded-2xl border border-line bg-white/85 p-6 backdrop-blur transition-all duration-300 hover:-translate-y-0.5 hover:border-green/40"
+        className="rounded-2xl border border-line bg-white/90 p-6 transition-[transform,border-color] duration-300 hover:-translate-y-0.5 hover:border-green/40"
         style={{ boxShadow: CARD_SHADOW }}
       >
         <div className="flex flex-wrap items-start justify-between gap-3">

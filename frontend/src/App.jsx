@@ -3,16 +3,17 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import { DashboardShell } from './pages/Dashboardlayout';
 import Dashboard from './pages/Dashboard';
 import CheckTransaction from './pages/CheckTransaction';
 import Transactions from './pages/Transactions';
-import FraudAlerts from './pages/Fraudalerts';
+import FraudAlerts from './pages/FraudAlerts';
 import Feedback from './pages/Feedback';
 import UploadTransaction from './pages/UploadTransaction';
 import Reports from './pages/Reports';
 import Profile from './pages/Profile';
 
-import AdminRoute from './components/Adminroute';
+import AdminRoute from './components/AdminRoute';
 import AdminOverview from './pages/admin/AdminOverview';
 import AdminUsers from './pages/admin/AdminUsers';
 import AdminTransactions from './pages/admin/AdminTransactions';
@@ -26,14 +27,17 @@ export default function App() {
       <Route path="/" element={<Home />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
-      <Route path="/dashboard" element={<Dashboard />} />
-      <Route path="/check" element={<CheckTransaction />} />
-      <Route path="/transactions" element={<Transactions />} />
-      <Route path="/alerts" element={<FraudAlerts />} />
-      <Route path="/feedback" element={<Feedback />} />
-      <Route path="/upload" element={<UploadTransaction />} />
-      <Route path="/reports" element={<Reports />} />
-      <Route path="/profile" element={<Profile />} />
+
+      <Route element={<DashboardShell />}>
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/check" element={<CheckTransaction />} />
+        <Route path="/transactions" element={<Transactions />} />
+        <Route path="/alerts" element={<FraudAlerts />} />
+        <Route path="/feedback" element={<Feedback />} />
+        <Route path="/upload" element={<UploadTransaction />} />
+        <Route path="/reports" element={<Reports />} />
+        <Route path="/profile" element={<Profile />} />
+      </Route>
 
       <Route element={<AdminRoute />}>
         <Route path="/admin" element={<AdminOverview />} />
@@ -46,4 +50,4 @@ export default function App() {
       </Route>
     </Routes>
   );
-};
+}

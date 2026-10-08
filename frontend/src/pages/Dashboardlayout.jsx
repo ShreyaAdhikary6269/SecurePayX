@@ -1,5 +1,5 @@
 import React from 'react'
-import { Link, useNavigate, useLocation } from 'react-router-dom'
+import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom'
 import NotificationBell from '../components/Notificationbell'
 import ChatWidget from '../components/Chatwidget'
 import AlertToaster from '../components/Alerttoaster'
@@ -162,15 +162,15 @@ function NavItem({ to, label, icon: ItemIcon, active, collapsed, index }) {
       to={to}
       title={collapsed ? label : undefined}
       style={{ animationDelay: `${index * 35}ms` }}
-      className={`group relative flex items-center rounded-xl py-2.5 mb-1 text-[14.5px] font-medium transition-all duration-200 animate-fade-in-left ${
+      className={`group relative flex items-center rounded-xl py-2.5 mb-1 text-[14.5px] font-medium transition-colors duration-200 animate-fade-in-left ${
         collapsed ? 'justify-center px-0' : 'gap-3 px-3.5'
-      } ${active ? 'text-white font-semibold bg-emerald-600 shadow-sm shadow-emerald-200' : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'}`}
+      } ${
+        active
+          ? 'text-white font-semibold bg-emerald-600 shadow-sm shadow-emerald-200'
+          : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
+      }`}
     >
-      {active && (
-        <span
-          className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r-full bg-emerald-400"
-        />
-      )}
+      {active && <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r-full bg-emerald-300" />}
       <ItemIcon
         className={`relative w-[19px] h-[19px] shrink-0 transition-colors ${
           active ? 'text-white' : 'text-emerald-500 group-hover:text-emerald-600'
@@ -224,7 +224,7 @@ function Sidebar() {
 
   return (
     <aside
-      className={`relative shrink-0 h-screen sticky top-0 z-30 flex flex-col border-r border-slate-200 transition-[width] duration-300 ease-out bg-white ${
+      className={`shrink-0 h-screen sticky top-0 z-30 flex flex-col border-r border-slate-200 transition-[width] duration-300 ease-out bg-white ${
         collapsed ? 'w-[84px]' : 'w-[272px]'
       }`}
     >
@@ -236,14 +236,11 @@ function Sidebar() {
         <ChevronIcon className={`w-3.5 h-3.5 transition-transform duration-300 ${collapsed ? 'rotate-180' : ''}`} />
       </button>
 
-      <Link
-        to="/dashboard"
-        className={`relative flex items-center py-6 ${collapsed ? 'justify-center' : 'gap-3 px-5'}`}
-      >
+      <Link to="/dashboard" className={`flex items-center py-6 ${collapsed ? 'justify-center' : 'gap-3 px-5'}`}>
         <div
           className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
           style={{
-            background: 'linear-gradient(135deg,#6366F1,#10B981)',
+            background: 'linear-gradient(135deg,#10B981,#0D9488)',
             boxShadow: '0 8px 20px -6px rgba(16,185,129,0.4)',
           }}
         >
@@ -260,7 +257,7 @@ function Sidebar() {
         )}
       </Link>
 
-      <nav className="relative flex-1 overflow-y-auto px-3 pb-4">
+      <nav className="flex-1 overflow-y-auto px-3 pb-4">
         {GROUPS.map((group, gi) => (
           <div key={group.title}>
             {collapsed ? (
@@ -284,13 +281,13 @@ function Sidebar() {
       </nav>
 
       {/* Signed-in account */}
-      <div className="relative p-3 border-t border-slate-100">
+      <div className="p-3 border-t border-slate-100">
         {collapsed ? (
           <div className="flex flex-col items-center gap-2">
             <div className="relative" title={email}>
               <div
                 className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold text-white"
-                style={{ background: 'linear-gradient(135deg,#6366F1,#10B981)' }}
+                style={{ background: 'linear-gradient(135deg,#10B981,#0D9488)' }}
               >
                 {initials}
               </div>
@@ -319,7 +316,7 @@ function Sidebar() {
               <div className="relative shrink-0">
                 <div
                   className="w-11 h-11 rounded-full flex items-center justify-center text-sm font-semibold text-white"
-                  style={{ background: 'linear-gradient(135deg,#6366F1,#10B981)' }}
+                  style={{ background: 'linear-gradient(135deg,#10B981,#0D9488)' }}
                 >
                   {initials}
                 </div>
@@ -371,10 +368,40 @@ function Sidebar() {
   )
 }
 
-export default function DashboardLayout({ children }) {
+/* ---------- background ---------- */
+// Memoised, so page changes and sidebar clicks never redraw it.
+// The glows are plain gradients (no blur filters), which keeps the page responsive.
+const Background = React.memo(function Background() {
+  return (
+    <>
+      {/* Same connected-dots background as Home, but softer */}
+      <div className="fixed inset-0 -z-10 opacity-40 pointer-events-none">
+        <SecurityBackground className="absolute inset-0" density={60} />
+      </div>
+      <div className="fixed inset-0 -z-10 pointer-events-none">
+        <div className="absolute inset-0 bg-security-grid opacity-[0.015]" />
+        <div
+          className="absolute -top-40 -left-40 w-[34rem] h-[34rem] rounded-full animate-drift-slow"
+          style={{ background: 'radial-gradient(circle, rgba(5,150,105,0.07), transparent 70%)' }}
+        />
+        <div
+          className="absolute top-1/4 -right-40 w-[30rem] h-[30rem] rounded-full animate-drift-slower"
+          style={{ background: 'radial-gradient(circle, rgba(16,185,129,0.07), transparent 70%)' }}
+        />
+      </div>
+    </>
+  )
+})
+
+/* ---------- layout ---------- */
+// True when a page is already inside the persistent shell below
+const ShellContext = React.createContext(false)
+
+function Chrome({ children }) {
   const navigate = useNavigate()
   const location = useLocation()
 
+  // Check the login on every page change
   React.useEffect(() => {
     const token = localStorage.getItem('token')
     if (isTokenExpired(token)) {
@@ -382,7 +409,12 @@ export default function DashboardLayout({ children }) {
       localStorage.removeItem('user')
       navigate('/login')
     }
-  }, [navigate])
+  }, [navigate, location.pathname])
+
+  // Start each page at the top
+  React.useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [location.pathname])
 
   const current = ALL_LINKS.find((l) => l.to === location.pathname)
   const today = new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })
@@ -394,15 +426,14 @@ export default function DashboardLayout({ children }) {
         @keyframes fade-in-left { from { opacity:0; transform:translateX(-10px);} to {opacity:1; transform:translateX(0);} }
         @keyframes pulse-dot { 0%,100% { opacity:1; } 50% { opacity:0.35; } }
         @keyframes float { 0%,100% { transform: translate3d(0,0,0); } 50% { transform: translate3d(16px,-20px,0); } }
-        @keyframes gradient-shift { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
-        @keyframes drift-slow { 0%,100% { transform:translate(0,0) scale(1);} 50% { transform:translate(40px,-30px) scale(1.08);} }
-        @keyframes drift-slower { 0%,100% { transform:translate(0,0) scale(1);} 50% { transform:translate(-50px,40px) scale(1.1);} }
+        @keyframes drift-slow { 0%,100% { transform:translate3d(0,0,0) scale(1);} 50% { transform:translate3d(40px,-30px,0) scale(1.08);} }
+        @keyframes drift-slower { 0%,100% { transform:translate3d(0,0,0) scale(1);} 50% { transform:translate3d(-50px,40px,0) scale(1.1);} }
         .animate-fade-in-up { animation: fade-in-up 0.6s cubic-bezier(0.22,1,0.36,1) both; }
         .animate-fade-in-left { animation: fade-in-left 0.45s ease-out both; }
         .animate-pulse-dot { animation: pulse-dot 1.6s ease-in-out infinite; }
-        .animate-float { animation: float 10s ease-in-out infinite; }
-        .animate-drift-slow { animation: drift-slow 16s ease-in-out infinite; }
-        .animate-drift-slower { animation: drift-slower 20s ease-in-out infinite; }
+        .animate-float { animation: float 10s ease-in-out infinite; will-change: transform; }
+        .animate-drift-slow { animation: drift-slow 16s ease-in-out infinite; will-change: transform; }
+        .animate-drift-slower { animation: drift-slower 20s ease-in-out infinite; will-change: transform; }
         .bg-security-grid {
           background-image: linear-gradient(#059669 1px, transparent 1px), linear-gradient(90deg, #059669 1px, transparent 1px);
           background-size: 48px 48px;
@@ -415,23 +446,14 @@ export default function DashboardLayout({ children }) {
         }
       `}</style>
 
-      {/* Same background as the Home page, fixed so it stays put while content scrolls */}
-    {/* Same background as Home, but softer */}
-<div className="fixed inset-0 -z-10 opacity-40 pointer-events-none">
-  <SecurityBackground className="absolute inset-0" density={60} />
-</div>
-<div className="fixed inset-0 -z-10 pointer-events-none">
-  <div className="absolute inset-0 bg-security-grid opacity-[0.015]" />
-  <div className="absolute -top-40 -left-40 w-[34rem] h-[34rem] rounded-full bg-green/5 blur-3xl animate-drift-slow" />
-  <div className="absolute top-1/4 -right-40 w-[30rem] h-[30rem] rounded-full bg-green-bright/5 blur-3xl animate-drift-slower" />
-</div>
+      <Background />
       <Sidebar />
 
       <main className="flex-1 min-w-0 relative overflow-x-clip">
         <div className="relative z-10">
           <header
-            className="sticky top-0 z-20 flex items-center justify-between gap-3 px-8 py-3.5 border-b border-slate-200/60 backdrop-blur-xl"
-            style={{ background: 'rgba(255,255,255,0.72)' }}
+            className="sticky top-0 z-20 flex items-center justify-between gap-3 px-8 py-3.5 border-b border-slate-200/60"
+            style={{ background: 'rgba(255,255,255,0.92)' }}
           >
             <div>
               <div className="text-[11px] uppercase tracking-[0.14em] text-slate-400">{today}</div>
@@ -440,7 +462,8 @@ export default function DashboardLayout({ children }) {
             <NotificationBell />
           </header>
 
-          <div className="px-8 py-8 max-w-6xl mx-auto w-full">{children}</div>
+          {/* Extra space at the bottom keeps the floating chat button off the last buttons */}
+          <div className="px-8 pt-8 pb-28 max-w-6xl mx-auto w-full">{children}</div>
         </div>
       </main>
 
@@ -448,4 +471,23 @@ export default function DashboardLayout({ children }) {
       <ChatWidget />
     </div>
   )
+}
+
+// Used as a layout route in App.jsx: the sidebar, header, chat and background
+// stay mounted while only the page content changes.
+export function DashboardShell() {
+  return (
+    <Chrome>
+      <ShellContext.Provider value={true}>
+        <Outlet />
+      </ShellContext.Provider>
+    </Chrome>
+  )
+}
+
+// Pages still wrap themselves in <DashboardLayout>. Inside the shell it adds nothing.
+export default function DashboardLayout({ children }) {
+  const inShell = React.useContext(ShellContext)
+  if (inShell) return <>{children}</>
+  return <Chrome>{children}</Chrome>
 }
