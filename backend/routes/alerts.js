@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/authMiddleware');
 const Transaction = require('../models/Transaction');
+const { formatMoney } = require('../utils/currency');
 
 // GET /api/alerts?limit=8
 router.get('/', auth, async (req, res) => {
@@ -15,7 +16,7 @@ router.get('/', auth, async (req, res) => {
       .map((t) => ({
         id: t.id,
         paymentType: t.paymentType,
-        amount: `$${Number(t.amount || 0).toFixed(2)}`,
+        amount: formatMoney(t.amount),
         fraudProbability: t.fraudProbability,
         createdAt: t.createdAt,
       }));

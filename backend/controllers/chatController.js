@@ -1,5 +1,6 @@
 const { GoogleGenAI } = require('@google/genai');
 const Transaction = require('../models/Transaction');
+const { formatMoney } = require('../utils/currency');
 
 // Model name can be overridden in backend/.env with GEMINI_MODEL=...
 const MODEL = process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite';
@@ -48,9 +49,9 @@ function buildDataSummary(transactions) {
     .map((t) => {
       const prob =
         t.fraudProbability != null ? `${(t.fraudProbability * 100).toFixed(1)}%` : 'n/a';
-      return `- ID ${t.id} | ${PAYMENT_TYPE_LABELS[t.paymentType] || t.paymentType} | $${Number(
-        t.amount || 0
-      ).toFixed(2)} | fraud probability ${prob} | ${t.isFraud ? 'FLAGGED' : 'cleared'} | ${new Date(
+      return `- ID ${t.id} | ${PAYMENT_TYPE_LABELS[t.paymentType] || t.paymentType} | ${formatMoney(
+        t.amount
+      )} | fraud probability ${prob} | ${t.isFraud ? 'FLAGGED' : 'cleared'} | ${new Date(
         t.createdAt
       ).toLocaleString()}`;
     })
@@ -79,6 +80,7 @@ You help the logged-in user with:
 
 Rules:
 - For questions about the user's own transactions or numbers, use ONLY the data below. If the answer is not in the data, say you don't have that information. Never invent transactions, amounts, or statistics.
+- Amounts are shown in Indian rupees (₹). Always write them with the ₹ symbol.
 - A "fraud probability" comes from a machine-learning model. It is a risk score, not proof of fraud. Explain it that way.
 - Stay on topic: payments, fraud, security, and this app. Politely decline anything else.
 - Never ask for card numbers, PINs, OTPs, or passwords.

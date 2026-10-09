@@ -1,4 +1,5 @@
 const Transaction = require('../models/Transaction');
+const { formatMoney } = require('../utils/currency');
 
 exports.getTransactions = async (req, res) => {
   try {
@@ -7,7 +8,7 @@ exports.getTransactions = async (req, res) => {
     const formatted = transactions.map((t) => ({
       id: t.id,
       paymentType: t.paymentType,
-      amount: `$${Number(t.amount || 0).toFixed(2)}`,
+      amount: formatMoney(t.amount),
       fraudProbability: t.fraudProbability,
       isFraud: t.isFraud,
       checkedAt: t.createdAt.toLocaleString(),

@@ -287,7 +287,7 @@ export default function AdminTransactions() {
                   <tr key={t.id} className="hover:bg-bg-subtle/50 transition-colors">
                     <td className="px-4 py-3 text-ink">{t.userEmail}</td>
                     <td className="px-4 py-3 text-ink-muted">{TYPE_LABELS[t.paymentType] || t.paymentType}</td>
-                    <td className="px-4 py-3 text-ink">${Number(t.amount || 0).toFixed(2)}</td>
+                  <td className="px-4 py-3 text-ink">₹{Number(t.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     <td className="px-4 py-3 text-ink-muted">{formatPercent(t.fraudProbability)}</td>
                     <td className="px-4 py-3">
                       <Badge tone={t.isFraud ? 'red' : 'green'}>{t.isFraud ? 'Flagged' : 'Cleared'}</Badge>
